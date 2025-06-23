@@ -1,0 +1,11 @@
+[package]
+name = "libu"
+version = "1.0.0"
+edition = "2024"
+authors = ["RunThem <iccy.fun@outlook.com>"]
+license = "MIT"
+description = "utils library"
+
+[dependencies]
+itertools = "0.14.0"
+bytes = "1.10.1"
