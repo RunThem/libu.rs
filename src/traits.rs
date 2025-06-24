@@ -108,3 +108,34 @@ impl ToDuration for str {
     }
   }
 }
+
+/// [`RemoveIf`]
+pub trait RemoveIf<F>
+where
+  F: Fn(&Self::Item) -> bool,
+{
+  type Item;
+
+  fn remove_if(&mut self, predicate: F) -> Self;
+}
+
+impl<T, F> RemoveIf<F> for Vec<T>
+where
+  F: Fn(&T) -> bool,
+{
+  type Item = T;
+
+  fn remove_if(&mut self, predicate: F) -> Self {
+    let mut i = 0;
+    let mut r = Self::with_capacity(self.len());
+
+    while i < self.len() {
+      crate::when! {
+        predicate(&self[i]) => r.push(self.remove(i)),
+        @ => i+=1,
+      }
+    }
+
+    r
+  }
+}
