@@ -21,7 +21,10 @@ pub trait Point {
   fn iMut(self) -> Mutex<Self>;
 }
 
-impl<T> Point for T {
+impl<T> Point for T
+where
+  T: Sized,
+{
   #[inline]
   #[allow(non_snake_case)]
   fn iBox(self) -> Box<Self> {
@@ -81,7 +84,10 @@ pub trait Discard {
   fn discard(self);
 }
 
-impl<T> Discard for T {
+impl<T> Discard for T
+where
+  T: Sized,
+{
   fn discard(self) {}
 }
 
