@@ -79,16 +79,16 @@ where
   }
 }
 
-/// [`Discard`]
-pub trait Discard {
-  fn discard(self);
+/// [`Void`]
+pub trait Void {
+  fn void(self);
 }
 
-impl<T> Discard for T
+impl<T> Void for T
 where
   T: Sized,
 {
-  fn discard(self) {}
+  fn void(self) {}
 }
 
 /// [`ToDuration`]
