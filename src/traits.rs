@@ -65,11 +65,11 @@ impl<O> Pick<O> for bool {
 /// [`Bzero`]
 pub trait Bzero {
   #[allow(unused)]
-  fn default(&mut self);
+  fn bzero(&mut self);
 }
 
 impl<T: Default> Bzero for T {
-  fn default(&mut self) {
+  fn bzero(&mut self) {
     *self = Default::default()
   }
 }
