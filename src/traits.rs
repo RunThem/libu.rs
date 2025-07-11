@@ -1,59 +1,57 @@
+#![allow(non_snake_case)]
+#![allow(unused)]
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+use crate::urc::Urc;
 
 /// [`Mrc`]
 pub type Mrc<T> = Rc<RefCell<T>>;
 
 /// [`Point`]
 pub trait Point {
-  #[allow(non_snake_case)]
   fn iBox(self) -> Box<Self>;
-
-  #[allow(non_snake_case)]
-  fn iArc(self) -> Arc<Self>;
-
-  #[allow(non_snake_case)]
   fn iMrc(self) -> Mrc<Self>;
-
-  #[allow(non_snake_case)]
+  fn iArc(self) -> Arc<Self>;
   fn iMut(self) -> Mutex<Self>;
+
+  fn iUrc(self) -> Urc<Self>
+  where
+    Self: Sized;
 }
 
-impl<T> Point for T
-where
-  T: Sized,
-{
+impl<T: Sized> Point for T {
   #[inline]
-  #[allow(non_snake_case)]
   fn iBox(self) -> Box<Self> {
     Box::new(self)
   }
 
   #[inline]
-  #[allow(non_snake_case)]
   fn iArc(self) -> Arc<Self> {
     Arc::new(self)
   }
 
   #[inline]
-  #[allow(non_snake_case)]
   fn iMrc(self) -> Mrc<Self> {
     Rc::new(RefCell::new(self))
   }
 
   #[inline]
-  #[allow(non_snake_case)]
   fn iMut(self) -> Mutex<Self> {
     Mutex::new(self)
+  }
+
+  #[inline]
+  fn iUrc(self) -> Urc<Self> {
+    Urc::new(self)
   }
 }
 
 /// [`Pick`]
 pub trait Pick<O> {
-  #[allow(non_snake_case)]
-  #[allow(unused)]
   fn pick(self, te: O, fe: O) -> O;
 }
 
@@ -70,10 +68,7 @@ pub trait Bzero {
   fn default(&mut self);
 }
 
-impl<T> Bzero for T
-where
-  T: Default,
-{
+impl<T: Default> Bzero for T {
   fn default(&mut self) {
     *self = Default::default()
   }
@@ -84,10 +79,7 @@ pub trait Void {
   fn void(self);
 }
 
-impl<T> Void for T
-where
-  T: Sized,
-{
+impl<T: Sized> Void for T {
   fn void(self) {}
 }
 
@@ -116,19 +108,13 @@ impl ToDuration for str {
 }
 
 /// [`RemoveIf`]
-pub trait RemoveIf<F>
-where
-  F: Fn(&Self::Item) -> bool,
-{
+pub trait RemoveIf<F: Fn(&Self::Item) -> bool> {
   type Item;
 
   fn remove_if(&mut self, predicate: F) -> Self;
 }
 
-impl<T, F> RemoveIf<F> for Vec<T>
-where
-  F: Fn(&T) -> bool,
-{
+impl<T, F: Fn(&T) -> bool> RemoveIf<F> for Vec<T> {
   type Item = T;
 
   fn remove_if(&mut self, predicate: F) -> Self {
