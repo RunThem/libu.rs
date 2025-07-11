@@ -1,3 +1,6 @@
+#![allow(non_snake_case)]
+#![allow(unused)]
+
 pub mod macros;
 pub mod traits;
 
