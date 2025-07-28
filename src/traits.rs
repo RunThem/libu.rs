@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::urc::Urc;
+use libu_urc::Urc;
 
 /// [`Mrc`]
 pub type Mrc<T> = Rc<RefCell<T>>;

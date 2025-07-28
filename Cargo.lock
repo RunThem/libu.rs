@@ -29,4 +29,9 @@ version = "1.0.0"
 dependencies = [
  "bytes",
  "itertools",
+ "libu-urc",
 ]
+
+[[package]]
+name = "libu-urc"
+version = "0.1.0"

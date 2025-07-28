@@ -4,9 +4,7 @@
 pub mod macros;
 pub mod traits;
 
-pub mod urc;
-
-pub use crate::traits::*;
+pub use libu_urc::*;
 
 extern crate bytes;
 extern crate itertools;

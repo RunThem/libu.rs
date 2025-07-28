@@ -4,8 +4,14 @@ version = "1.0.0"
 edition = "2024"
 authors = ["RunThem <iccy.fun@outlook.com>"]
 license = "MIT"
-description = "utils library"
+description = "Utils library."
+repository = "https://github.com/RunThem/libu.rs"
+
+[workspace]
+members = ["libu-urc"]
 
 [dependencies]
+libu-urc = { path = "libu-urc" }
+
 itertools = "0.14.0"
 bytes = "1.10.1"
