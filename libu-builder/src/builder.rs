@@ -1,7 +1,7 @@
 use darling::{ast, util};
 use proc_macro2::{Ident, TokenStream as Ts};
 use quote::quote;
-use syn::{Attribute, Error, Type, TypePath, Visibility};
+use syn::{Attribute, Error, PathArguments, Type, TypePath, Visibility};
 
 #[derive(Debug, darling::FromField)]
 #[darling(attributes(builder), forward_attrs(allow, doc, cfg))]
@@ -80,6 +80,7 @@ impl quote::ToTokens for BuilderDeriveInput {
       }
 
       let ident = ident.as_ref().unwrap();
+      let (ty, is_option) = get_option_inner_type(ty);
 
       Init.push(quote! (#ident: std::option::Option::None));
 
@@ -106,7 +107,9 @@ impl quote::ToTokens for BuilderDeriveInput {
 
       Method.push(method);
 
-      if field.must {
+      if is_option {
+        Build.push(quote! (#ident: self.#ident));
+      } else if field.must {
         let msg = format!("Field '{ident}' is not initialized.");
         Build.push(quote! (#ident: self.#ident.expect(#msg)));
       } else {
@@ -139,6 +142,24 @@ impl quote::ToTokens for BuilderDeriveInput {
       }
     });
   }
+}
+
+fn get_option_inner_type(ty: &Type) -> (&Type, bool) {
+  if let Type::Path(TypePath { path, .. }) = ty {
+    if let Some(segment) = path.segments.last()
+      && segment.ident == "Option"
+    {
+      if let PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments { args, .. }) =
+        &segment.arguments
+      {
+        if let Some(syn::GenericArgument::Type(inner_ty)) = args.first() {
+          return (inner_ty, true);
+        }
+      }
+    }
+  }
+
+  (ty, false)
 }
 
 fn build(mut ty: TypePath) -> Ts {
