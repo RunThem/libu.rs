@@ -77,7 +77,6 @@ macro_rules! hash {
 }
 
 #[doc(hidden)]
-#[macro_export]
 macro_rules! count {
   (@subst $($x: tt)*) => (());
   ($($rest: expr),*) => (<[()]>::len(&[$($crate::count!(@subst $rest)),*]));

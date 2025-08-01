@@ -3,18 +3,18 @@ use std::fmt::{Debug, Display};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
-struct UrcInner<T: Sized> {
+struct MrcInner<T: Sized> {
   refcount: Cell<usize>,
   value: UnsafeCell<T>,
 }
 
-pub struct Urc<T: Sized> {
-  inner: NonNull<UrcInner<T>>,
+pub struct Mrc<T: Sized> {
+  inner: NonNull<MrcInner<T>>,
 }
 
-impl<T: Sized> Urc<T> {
+impl<T: Sized> Mrc<T> {
   pub fn new(value: T) -> Self {
-    let inner = Box::new(UrcInner {
+    let inner = Box::new(MrcInner {
       refcount: Cell::new(1),
       value: UnsafeCell::new(value),
     });
@@ -40,19 +40,19 @@ impl<T: Sized> Urc<T> {
   }
 }
 
-impl<T: Sized + Debug> Debug for Urc<T> {
+impl<T: Sized + Debug> Debug for Mrc<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     unsafe { writeln!(f, "{:#?}", *self.inner.as_ref().value.get()) }
   }
 }
 
-impl<T: Sized + Display> Display for Urc<T> {
+impl<T: Sized + Display> Display for Mrc<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     unsafe { writeln!(f, "{}", *self.inner.as_ref().value.get()) }
   }
 }
 
-impl<T: Sized> Clone for Urc<T> {
+impl<T: Sized> Clone for Mrc<T> {
   fn clone(&self) -> Self {
     self.refcount_inc();
 
@@ -62,7 +62,7 @@ impl<T: Sized> Clone for Urc<T> {
   }
 }
 
-impl<T: Sized> Deref for Urc<T> {
+impl<T: Sized> Deref for Mrc<T> {
   type Target = T;
 
   fn deref(&self) -> &Self::Target {
@@ -70,13 +70,13 @@ impl<T: Sized> Deref for Urc<T> {
   }
 }
 
-impl<T: Sized> DerefMut for Urc<T> {
+impl<T: Sized> DerefMut for Mrc<T> {
   fn deref_mut(&mut self) -> &mut Self::Target {
     unsafe { &mut *self.inner.as_ref().value.get() }
   }
 }
 
-impl<T: Sized> Drop for Urc<T> {
+impl<T: Sized> Drop for Mrc<T> {
   fn drop(&mut self) {
     if self.refcount().get() == 1 {
       unsafe { NonNull::drop_in_place(self.inner) };

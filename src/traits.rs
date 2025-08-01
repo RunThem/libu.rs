@@ -3,19 +3,13 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use libu_point::Urc;
-
-/// [`Mrc`]
-pub type Mrc<T> = Rc<RefCell<T>>;
+use libu_point::Mrc;
 
 /// [`Point`]
 pub trait Point {
   fn iBox(self) -> Box<Self>;
-  fn iMrc(self) -> Mrc<Self>;
-  fn iArc(self) -> Arc<Self>;
-  fn iMut(self) -> Mutex<Self>;
 
-  fn iUrc(self) -> Urc<Self>
+  fn iMrc(self) -> Mrc<Self>
   where
     Self: Sized;
 }
@@ -27,23 +21,8 @@ impl<T: Sized> Point for T {
   }
 
   #[inline]
-  fn iArc(self) -> Arc<Self> {
-    Arc::new(self)
-  }
-
-  #[inline]
   fn iMrc(self) -> Mrc<Self> {
-    Rc::new(RefCell::new(self))
-  }
-
-  #[inline]
-  fn iMut(self) -> Mutex<Self> {
-    Mutex::new(self)
-  }
-
-  #[inline]
-  fn iUrc(self) -> Urc<Self> {
-    Urc::new(self)
+    Mrc::new(self)
   }
 }
 
