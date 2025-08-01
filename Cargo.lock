@@ -76,12 +76,12 @@ version = "1.0.0"
 dependencies = [
  "bytes",
  "itertools",
- "libu-builder",
- "libu-urc",
+ "libu-derive",
+ "libu-point",
 ]
 
 [[package]]
-name = "libu-builder"
+name = "libu-derive"
 version = "0.1.0"
 dependencies = [
  "darling",
@@ -91,7 +91,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "libu-urc"
+name = "libu-point"
 version = "0.1.0"
 
 [[package]]

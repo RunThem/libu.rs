@@ -3,8 +3,6 @@
 
 mod builder;
 
-use crate::builder::BuilderDeriveInput;
-
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
 use quote::ToTokens;
@@ -13,7 +11,7 @@ use quote::ToTokens;
 pub fn derive_builder(input: TokenStream) -> TokenStream {
   let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
-  BuilderDeriveInput::from_derive_input(&input)
+  builder::BuilderDeriveInput::from_derive_input(&input)
     .unwrap()
     .to_token_stream()
     .into()

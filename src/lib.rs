@@ -4,8 +4,8 @@
 pub mod macros;
 pub mod traits;
 
-pub use libu_builder::*;
-pub use libu_urc::*;
+pub use libu_derive::*;
+pub use libu_point::*;
 
 extern crate bytes;
 extern crate itertools;
