@@ -117,26 +117,37 @@ impl quote::ToTokens for BuilderDeriveInput {
       }
     }
 
-    let generics = &generics.params;
-    let generics = quote! (<#(#generics), *>);
+    let mut generics_meta_params = generics.params.clone();
+    generics_meta_params.iter_mut().for_each(|t| {
+      if let syn::GenericParam::Type(t) = t {
+        t.bounds.clear();
+        t.eq_token = None;
+        t.default = None;
+      }
+    });
+
+    let where_clause = &generics.where_clause;
+    let generics_params = &generics.params;
+    let generics_params = quote! (<#(#generics_params), *>);
+    let generics_meta_params = quote! (<#(#generics_meta_params), *>);
 
     tokens.extend(quote! {
       #[derive(Default)]
       #(#attrs)*
-      #vis struct #builder_ident #generics {
+      #vis struct #builder_ident #generics_params #where_clause {
         #(#Fields),*
       }
 
-      impl #generics #builder_ident #generics {
+      impl #generics_params #builder_ident #generics_meta_params #where_clause {
         #(#Method)*
 
-        pub fn build(mut self) -> #ident #generics {
+        pub fn build(mut self) -> #ident #generics_meta_params {
           #ident { #(#Build),* }
         }
       }
 
-      impl #generics #ident #generics {
-        pub fn builder() -> #builder_ident #generics {
+      impl #generics_params #ident #generics_meta_params #where_clause {
+        pub fn builder() -> #builder_ident #generics_meta_params {
           #builder_ident { #(#Init),* }
         }
       }
