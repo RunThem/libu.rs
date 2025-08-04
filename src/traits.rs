@@ -3,29 +3,6 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use libu_point::Mrc;
-
-/// [`Point`]
-pub trait Point {
-  fn iBox(self) -> Box<Self>;
-
-  fn iMrc(self) -> Mrc<Self>
-  where
-    Self: Sized;
-}
-
-impl<T: Sized> Point for T {
-  #[inline]
-  fn iBox(self) -> Box<Self> {
-    Box::new(self)
-  }
-
-  #[inline]
-  fn iMrc(self) -> Mrc<Self> {
-    Mrc::new(self)
-  }
-}
-
 /// [`Pick`]
 pub trait Pick<O> {
   fn pick(self, te: O, fe: O) -> O;
