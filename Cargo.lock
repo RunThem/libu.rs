@@ -76,9 +76,14 @@ version = "1.0.0"
 dependencies = [
  "bytes",
  "itertools",
+ "libu-chan",
  "libu-derive",
  "libu-point",
 ]
+
+[[package]]
+name = "libu-chan"
+version = "0.1.0"
 
 [[package]]
 name = "libu-derive"
