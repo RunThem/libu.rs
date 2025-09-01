@@ -8,13 +8,14 @@ description = "Utils library."
 repository = "https://github.com/RunThem/libu.rs"
 
 [workspace]
-members = ["libu-chan", "libu-derive", "libu-point"]
+members = ["libu-derive", "libu-point", "libu-timer", "libu-chan"]
 resolver = "2"
 
 [dependencies]
 libu-chan = { path = "libu-chan" }
 libu-point = { path = "libu-point" }
 libu-derive = { path = "libu-derive" }
+libu-timer = { path = "libu-timer" }
 
 itertools = "0.14.0"
 bytes = "1.10.1"
