@@ -106,6 +106,9 @@ version = "0.1.0"
 [[package]]
 name = "libu-timer"
 version = "0.1.0"
+dependencies = [
+ "libu-point",
+]
 
 [[package]]
 name = "memchr"
