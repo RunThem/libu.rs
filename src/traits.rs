@@ -3,45 +3,32 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-/// [`Pick`]
-pub trait Pick<O> {
-  fn pick(self, te: O, fe: O) -> O;
-}
+use extend::ext;
 
-impl<O> Pick<O> for bool {
+#[ext]
+impl<O> bool {
   #[inline]
   fn pick(self, te: O, fe: O) -> O {
     if self { te } else { fe }
   }
 }
 
-/// [`Bzero`]
-pub trait Bzero {
-  #[allow(unused)]
-  fn bzero(&mut self);
-}
-
-impl<T: Default> Bzero for T {
+#[ext]
+impl<A: Default> A {
+  #[inline]
   fn bzero(&mut self) {
     *self = Default::default()
   }
 }
 
-/// [`Void`]
-pub trait Void {
-  fn void(self);
-}
-
-impl<T: Sized> Void for T {
+#[ext]
+impl<B: Sized> B {
+  #[inline]
   fn void(self) {}
 }
 
-/// [`ToDuration`]
-pub trait ToDuration {
-  fn to_dur(&self) -> Duration;
-}
-
-impl ToDuration for str {
+#[ext]
+impl str {
   #[inline]
   fn to_dur(&self) -> Duration {
     let len = self.find(|c: char| !c.is_ascii_digit()).unwrap();
@@ -60,16 +47,8 @@ impl ToDuration for str {
   }
 }
 
-/// [`RemoveIf`]
-pub trait RemoveIf<F: Fn(&Self::Item) -> bool> {
-  type Item;
-
-  fn remove_if(&mut self, predicate: F) -> Self;
-}
-
-impl<T, F: Fn(&T) -> bool> RemoveIf<F> for Vec<T> {
-  type Item = T;
-
+#[ext]
+impl<T, F: Fn(&T) -> bool> Vec<T> {
   fn remove_if(&mut self, predicate: F) -> Self {
     let mut i = 0;
     let mut r = Self::with_capacity(self.len());
