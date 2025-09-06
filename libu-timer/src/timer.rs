@@ -3,21 +3,22 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 
 use libu_point::Mrc;
 
 const WHEEL_SIZE: usize = 4096;
 const TIMER: std::sync::LazyLock<Timer> = std::sync::LazyLock::new(|| Timer::new());
 
-pub fn delay(delay: usize, f: impl Fn() + Send + 'static) -> TimerTask {
+pub fn delay(delay: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
   TIMER.delay(delay, f)
 }
 
-pub fn ticker(repeat: usize, f: impl Fn() + Send + 'static) -> TimerTask {
+pub fn ticker(repeat: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
   TIMER.ticker(repeat, f)
 }
 
-type TimerTaskCallback = Box<dyn Fn() + Send + 'static>;
+type TimerTaskCallback = Box<dyn FnMut() + Send + 'static>;
 
 struct TimerTaskInner {
   remove: bool,
@@ -28,7 +29,7 @@ struct TimerTaskInner {
 }
 
 impl TimerTaskInner {
-  fn new(delay: usize, repeat: Option<usize>, f: impl Fn() + Send + 'static) -> Self {
+  fn new(delay: usize, repeat: Option<usize>, f: impl FnMut() + Send + 'static) -> Self {
     Self {
       remove: false,
       run: true,
@@ -74,7 +75,7 @@ impl TimerWheel {
     }
   }
 
-  fn delay(&mut self, delay: usize, f: impl Fn() + Send + 'static) -> TimerTask {
+  fn delay(&mut self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
     let delay = self.tick + delay;
 
     let task = Mrc::new(TimerTaskInner::new(delay, None, f));
@@ -88,7 +89,7 @@ impl TimerWheel {
     }
   }
 
-  fn ticker(&mut self, repeat: usize, f: impl Fn() + Send + 'static) -> TimerTask {
+  fn ticker(&mut self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
     let delay = self.tick + repeat;
 
     let task = Mrc::new(TimerTaskInner::new(delay, Some(repeat), f));
@@ -156,11 +157,11 @@ impl Timer {
     this
   }
 
-  pub fn delay(&self, delay: usize, f: impl Fn() + Send + 'static) -> TimerTask {
+  pub fn delay(&self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
     self.inner.lock().unwrap().delay(delay, f)
   }
 
-  pub fn ticker(&self, repeat: usize, f: impl Fn() + Send + 'static) -> TimerTask {
+  pub fn ticker(&self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
     self.inner.lock().unwrap().ticker(repeat, f)
   }
 }
