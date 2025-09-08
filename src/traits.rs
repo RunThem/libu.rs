@@ -5,30 +5,30 @@ use std::time::Duration;
 
 use extend::ext;
 
-#[ext]
-pub impl<O> bool {
+#[ext(pub, name = Pick)]
+impl<O> bool {
   #[inline]
   fn pick(self, te: O, fe: O) -> O {
     if self { te } else { fe }
   }
 }
 
-#[ext]
-pub impl<A: Default> A {
+#[ext(pub, name = Bzero)]
+impl<A: Default> A {
   #[inline]
   fn bzero(&mut self) {
     *self = Default::default()
   }
 }
 
-#[ext]
-pub impl<B: Sized> B {
+#[ext(pub, name = Void)]
+impl<B: Sized> B {
   #[inline]
   fn void(self) {}
 }
 
-#[ext]
-pub impl str {
+#[ext(pub, name = ToDur)]
+impl str {
   #[inline]
   fn to_dur(&self) -> Duration {
     let len = self.find(|c: char| !c.is_ascii_digit()).unwrap();
@@ -47,8 +47,8 @@ pub impl str {
   }
 }
 
-#[ext]
-pub impl<T, F: Fn(&T) -> bool> Vec<T> {
+#[ext(pub, name = RemoveIf)]
+impl<T, F: Fn(&T) -> bool> Vec<T> {
   fn remove_if(&mut self, predicate: F) -> Self {
     let mut i = 0;
     let mut r = Self::with_capacity(self.len());

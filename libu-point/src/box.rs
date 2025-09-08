@@ -1,8 +1,5 @@
-pub trait IntoBox<T> {
-  fn iBox(self) -> Box<T>;
-}
-
-impl<T> IntoBox<T> for T {
+#[extend::ext(pub, name=IntoBox)]
+impl<T> T {
   fn iBox(self) -> Box<T> {
     Box::new(self)
   }

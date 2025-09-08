@@ -3,18 +3,18 @@ use std::fmt::{Debug, Display};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
-struct MrcInner<T: Sized> {
+struct SptrInner<T: Sized> {
   refcount: Cell<usize>,
   value: UnsafeCell<T>,
 }
 
-pub struct Mrc<T: Sized> {
-  inner: NonNull<MrcInner<T>>,
+pub struct Sptr<T: Sized> {
+  inner: NonNull<SptrInner<T>>,
 }
 
-impl<T: Sized> Mrc<T> {
+impl<T: Sized> Sptr<T> {
   pub fn new(value: T) -> Self {
-    let inner = Box::new(MrcInner {
+    let inner = Box::new(SptrInner {
       refcount: Cell::new(1),
       value: UnsafeCell::new(value),
     });
@@ -40,19 +40,19 @@ impl<T: Sized> Mrc<T> {
   }
 }
 
-impl<T: Sized + Debug> Debug for Mrc<T> {
+impl<T: Sized + Debug> Debug for Sptr<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     unsafe { write!(f, "{:#?}", *self.inner.as_ref().value.get()) }
   }
 }
 
-impl<T: Sized + Display> Display for Mrc<T> {
+impl<T: Sized + Display> Display for Sptr<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     unsafe { write!(f, "{}", *self.inner.as_ref().value.get()) }
   }
 }
 
-impl<T: Sized> Clone for Mrc<T> {
+impl<T: Sized> Clone for Sptr<T> {
   fn clone(&self) -> Self {
     self.refcount_inc();
 
@@ -62,7 +62,7 @@ impl<T: Sized> Clone for Mrc<T> {
   }
 }
 
-impl<T: Sized> Deref for Mrc<T> {
+impl<T: Sized> Deref for Sptr<T> {
   type Target = T;
 
   fn deref(&self) -> &Self::Target {
@@ -70,18 +70,25 @@ impl<T: Sized> Deref for Mrc<T> {
   }
 }
 
-impl<T: Sized> DerefMut for Mrc<T> {
+impl<T: Sized> DerefMut for Sptr<T> {
   fn deref_mut(&mut self) -> &mut Self::Target {
     unsafe { &mut *self.inner.as_ref().value.get() }
   }
 }
 
-impl<T: Sized> Drop for Mrc<T> {
+impl<T: Sized> Drop for Sptr<T> {
   fn drop(&mut self) {
     if self.refcount().get() == 1 {
       unsafe { NonNull::drop_in_place(self.inner) };
     } else {
       self.refcount_dec();
     }
+  }
+}
+
+#[extend::ext_sized(pub, name = IntoSptr)]
+impl<T> T {
+  fn iSptr(self) -> Sptr<T> {
+    Sptr::new(self)
   }
 }

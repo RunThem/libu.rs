@@ -5,7 +5,7 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-use libu_point::Mrc;
+use libu_point::Sptr;
 
 const WHEEL_SIZE: usize = 4096;
 const TIMER: std::sync::LazyLock<Timer> = std::sync::LazyLock::new(|| Timer::new());
@@ -41,7 +41,7 @@ impl TimerTaskInner {
 }
 
 pub struct TimerTask {
-  inner: Mrc<TimerTaskInner>,
+  inner: Sptr<TimerTaskInner>,
 }
 
 unsafe impl Sync for TimerTask {}
@@ -78,7 +78,7 @@ impl TimerWheel {
   fn delay(&mut self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
     let delay = self.tick + delay;
 
-    let task = Mrc::new(TimerTaskInner::new(delay, None, f));
+    let task = Sptr::new(TimerTaskInner::new(delay, None, f));
 
     self.buckets[delay % WHEEL_SIZE].push_back(TimerTask {
       inner: task.clone(),
@@ -92,7 +92,7 @@ impl TimerWheel {
   fn ticker(&mut self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
     let delay = self.tick + repeat;
 
-    let task = Mrc::new(TimerTaskInner::new(delay, Some(repeat), f));
+    let task = Sptr::new(TimerTaskInner::new(delay, Some(repeat), f));
 
     self.buckets[delay % WHEEL_SIZE].push_back(TimerTask {
       inner: task.clone(),

@@ -91,6 +91,9 @@ dependencies = [
 [[package]]
 name = "libu-point"
 version = "0.1.0"
+dependencies = [
+ "extend",
+]
 
 [[package]]
 name = "libu-timer"
