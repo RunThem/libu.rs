@@ -17,8 +17,11 @@ mod test {
 
   #[test]
   fn tset() {
-    let s = 1.iSptr();
-    let s = 1.iUrc();
-    let n = 1.iBox();
+    let __ = 0.iSptr();
+    let __ = 0.iBox();
+    let __ = 0.iUrc();
+    let __ = 0.iMrc();
+    let __ = 0.iRc();
+    let __ = 0.iArc();
   }
 }
