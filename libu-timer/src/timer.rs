@@ -1,26 +1,26 @@
+use std::cell::RefCell;
 use std::collections::LinkedList;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-use libu_point::Sptr;
-
 const WHEEL_SIZE: usize = 4096;
 const TIMER: std::sync::LazyLock<Timer> = std::sync::LazyLock::new(|| Timer::new());
 
-pub fn delay(delay: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
+pub fn delay(delay: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
   TIMER.delay(delay, f)
 }
 
-pub fn ticker(repeat: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
+pub fn ticker(repeat: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
   TIMER.ticker(repeat, f)
 }
 
 type TimerTaskCallback = Box<dyn FnMut() + Send + 'static>;
 
-struct TimerTaskInner {
+struct TimerTask {
   remove: bool,
   run: bool,
   delay: usize,
@@ -28,7 +28,10 @@ struct TimerTaskInner {
   callback: TimerTaskCallback,
 }
 
-impl TimerTaskInner {
+unsafe impl Sync for TimerTask {}
+unsafe impl Send for TimerTask {}
+
+impl TimerTask {
   fn new(delay: usize, repeat: Option<usize>, f: impl FnMut() + Send + 'static) -> Self {
     Self {
       remove: false,
@@ -40,31 +43,28 @@ impl TimerTaskInner {
   }
 }
 
-pub struct TimerTask {
-  inner: Sptr<TimerTaskInner>,
+pub struct TimerHandle {
+  inner: Arc<Mutex<TimerTask>>,
 }
 
-unsafe impl Sync for TimerTask {}
-unsafe impl Send for TimerTask {}
-
-impl TimerTask {
+impl TimerHandle {
   pub fn start(&mut self) {
-    self.inner.run = true;
+    self.inner.try_lock().unwrap().run = true;
   }
 
   pub fn stop(&mut self) {
-    self.inner.run = false;
+    self.inner.try_lock().unwrap().run = false;
   }
 
   pub fn remove(&mut self) {
-    self.inner.run = false;
-    self.inner.remove = true;
+    self.inner.try_lock().unwrap().run = false;
+    self.inner.try_lock().unwrap().remove = true;
   }
 }
 
 struct TimerWheel {
   tick: usize,
-  buckets: [LinkedList<TimerTask>; WHEEL_SIZE],
+  buckets: [LinkedList<Arc<Mutex<TimerTask>>>; WHEEL_SIZE],
 }
 
 impl TimerWheel {
@@ -75,59 +75,42 @@ impl TimerWheel {
     }
   }
 
-  fn delay(&mut self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
+  fn delay(&mut self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
     let delay = self.tick + delay;
 
-    let task = Sptr::new(TimerTaskInner::new(delay, None, f));
+    let task = Arc::new(Mutex::new(TimerTask::new(delay, None, f)));
+    self.buckets[delay % WHEEL_SIZE].push_back(task.clone());
 
-    self.buckets[delay % WHEEL_SIZE].push_back(TimerTask {
-      inner: task.clone(),
-    });
-
-    TimerTask {
-      inner: task.clone(),
-    }
+    TimerHandle { inner: task }
   }
 
-  fn ticker(&mut self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
+  fn ticker(&mut self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
     let delay = self.tick + repeat;
 
-    let task = Sptr::new(TimerTaskInner::new(delay, Some(repeat), f));
+    let task = Arc::new(Mutex::new(TimerTask::new(delay, Some(repeat), f)));
+    self.buckets[delay % WHEEL_SIZE].push_back(task.clone());
 
-    self.buckets[delay % WHEEL_SIZE].push_back(TimerTask {
-      inner: task.clone(),
-    });
-
-    TimerTask {
-      inner: task.clone(),
-    }
+    TimerHandle { inner: task }
   }
 
   fn update(&mut self) {
-    let buckets = &mut self.buckets[self.tick % WHEEL_SIZE];
+    let tasks = self.buckets[self.tick % WHEEL_SIZE]
+      .extract_if(|t| t.try_lock().unwrap().delay == self.tick)
+      .collect::<Vec<_>>();
 
-    let mut ready = LinkedList::new();
-    let mut cursor = buckets.cursor_front_mut();
-    while let Some(task) = cursor.current() {
-      if task.inner.delay == self.tick {
-        ready.push_back(cursor.remove_current().unwrap());
-      } else {
-        cursor.move_next();
-      }
-    }
-
-    for mut task in ready {
-      if task.inner.run {
-        (task.inner.callback)();
+    for task in tasks {
+      let mut task_mut = task.lock().unwrap();
+      if task_mut.run {
+        (task_mut.callback)();
       }
 
-      if !task.inner.remove
-        && let Some(repeat) = task.inner.repeat
+      if !task_mut.remove
+        && let Some(repeat) = task_mut.repeat
       {
-        task.inner.delay = self.tick + repeat;
-
-        self.buckets[task.inner.delay % WHEEL_SIZE].push_back(task);
+        task_mut.delay = self.tick + repeat;
       }
+
+      self.buckets[task_mut.delay % WHEEL_SIZE].push_back(task.clone());
     }
 
     self.tick += 1;
@@ -157,11 +140,11 @@ impl Timer {
     this
   }
 
-  pub fn delay(&self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
+  pub fn delay(&self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
     self.inner.lock().unwrap().delay(delay, f)
   }
 
-  pub fn ticker(&self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerTask {
+  pub fn ticker(&self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
     self.inner.lock().unwrap().ticker(repeat, f)
   }
 }
