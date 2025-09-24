@@ -9,6 +9,7 @@ pub use traits::*;
 
 pub use libu_chan::*;
 pub use libu_derive::*;
+pub use libu_log::*;
 pub use libu_point::*;
 pub use libu_timer::*;
 
@@ -23,5 +24,9 @@ mod test {
     let __ = 0.iMrc();
     let __ = 0.iRc();
     let __ = 0.iArc();
+
+    init();
+
+    info!("hello");
   }
 }

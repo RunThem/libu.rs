@@ -8,7 +8,7 @@ description = "Utils library."
 repository = "https://github.com/RunThem/libu.rs"
 
 [workspace]
-members = ["libu-derive", "libu-point", "libu-timer", "libu-chan"]
+members = ["libu-derive", "libu-point", "libu-timer", "libu-chan", "libu-log"]
 resolver = "2"
 
 [dependencies]
@@ -16,5 +16,6 @@ libu-chan = { path = "libu-chan" }
 libu-point = { path = "libu-point" }
 libu-derive = { path = "libu-derive" }
 libu-timer = { path = "libu-timer" }
+libu-log = { path = "libu-log" }
 
 extend = "1.2.0"
