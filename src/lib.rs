@@ -21,8 +21,6 @@ mod test {
     let __ = 0.iBox();
     let __ = 0.iUrc();
     let __ = 0.iMrc();
-    let __ = 0.iRc();
-    let __ = 0.iArc();
 
     init();
 
