@@ -15,6 +15,10 @@ impl<S, R> Chan<S, R> {
   pub fn try_recv(&self) -> Result<R, mpsc::TryRecvError> {
     self.1.try_recv()
   }
+
+  pub fn iter(&self) -> impl Iterator<Item = R> + '_ {
+    std::iter::from_fn(|| self.recv().ok())
+  }
 }
 
 impl<S, R> std::fmt::Debug for Chan<S, R> {
