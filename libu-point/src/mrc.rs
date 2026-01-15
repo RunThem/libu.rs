@@ -10,8 +10,28 @@ impl<T> T {
 }
 
 #[extend::ext(pub, name = AtMrc)]
+impl<T: Clone> Mrc<T> {
+  fn at(&self) -> T {
+    self
+      .lock()
+      .unwrap_or_else(|poisoned| poisoned.into_inner())
+      .clone()
+  }
+}
+
+#[extend::ext(pub, name = WithMrc)]
 impl<T> Mrc<T> {
-  fn at(&self) -> MutexGuard<'_, T> {
-    self.lock().unwrap()
+  fn with<F, R>(&self, f: F) -> R
+  where
+    F: FnOnce(&T) -> R,
+  {
+    f(&*self.lock().unwrap_or_else(|poisoned| poisoned.into_inner()))
+  }
+
+  fn with_mut<F, R>(&self, f: F) -> R
+  where
+    F: FnOnce(&mut T) -> R,
+  {
+    f(&mut *self.lock().unwrap_or_else(|poisoned| poisoned.into_inner()))
   }
 }

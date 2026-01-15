@@ -18,7 +18,6 @@ mod test {
 
   #[test]
   fn tset() {
-    let __ = 0.iSptr();
     let __ = 0.iBox();
     let __ = 0.iUrc();
     let __ = 0.iMrc();

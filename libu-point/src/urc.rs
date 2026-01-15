@@ -11,12 +11,25 @@ impl<T> T {
 }
 
 #[extend::ext(pub, name = AtUrc)]
+impl<T: Clone> Urc<T> {
+  fn at(&self) -> T {
+    self.borrow().clone()
+  }
+}
+
+#[extend::ext(pub, name = WithUrc)]
 impl<T> Urc<T> {
-  fn at(&self) -> Ref<'_, T> {
-    self.borrow()
+  fn with<F, R>(&self, f: F) -> R
+  where
+    F: FnOnce(&T) -> R,
+  {
+    f(&*self.borrow())
   }
 
-  fn at_mut(&self) -> RefMut<'_, T> {
-    self.borrow_mut()
+  fn with_mut<F, R>(&self, f: F) -> R
+  where
+    F: FnOnce(&mut T) -> R,
+  {
+    f(&mut *self.borrow_mut())
   }
 }
