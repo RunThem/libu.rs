@@ -27,12 +27,6 @@ impl<S, R> std::fmt::Debug for Chan<S, R> {
   }
 }
 
-impl<S, R> std::fmt::Display for Chan<S, R> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self)
-  }
-}
-
 pub fn channel<S, R>() -> (Chan<S, R>, Chan<R, S>) {
   let (t0, r0) = mpsc::channel::<S>();
   let (t1, r1) = mpsc::channel::<R>();
