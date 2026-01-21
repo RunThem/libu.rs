@@ -21,9 +21,5 @@ mod test {
     let __ = 0.iBox();
     let __ = 0.iUrc();
     let __ = 0.iMrc();
-
-    init();
-
-    info!("hello");
   }
 }

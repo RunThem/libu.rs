@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 mod builder;
+mod clone;
 
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
@@ -31,4 +32,10 @@ pub fn derive_send(input: TokenStream) -> TokenStream {
   let ident = input.ident;
 
   quote::quote! (unsafe impl Send for #ident {}).into()
+}
+
+/// use requires feature(proc_macro_hygiene)
+#[proc_macro_attribute]
+pub fn clone(attr: TokenStream, item: TokenStream) -> TokenStream {
+  clone::clone(attr, item)
 }
