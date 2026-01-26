@@ -1,4 +1,132 @@
 /**
+[`u_chk_if`]
+
+```rust
+fn main() {
+  let s = String::from("hello");
+
+  libu::u_chk_if!(false);
+  libu::u_chk_if!(false, ());
+  libu::u_chk_if!(false, drop(s));
+  libu::u_chk_if!(false, (), drop(s));
+}
+```
+*/
+#[macro_export]
+macro_rules! u_chk_if {
+  ($expr:expr) => {
+    if $expr {
+      return;
+    }
+  };
+  ($expr:expr, $val:expr) => {
+    if $expr {
+      return $val;
+    }
+  };
+  ($expr:expr, $stmt:stmt) => {
+    if $expr {
+      $stmt;
+      return;
+    }
+  };
+  ($expr:expr, $val:expr, $stmt:stmt) => {
+    if $expr {
+      $stmt;
+      return $val;
+    }
+  };
+}
+
+/**
+[`u_brk_if`]
+
+```rust
+fn main() {
+  let s = String::from("hello");
+
+  'label: loop {
+    break;
+
+    libu::u_brk_if!(false);
+    libu::u_brk_if!(false, 'label);
+    libu::u_brk_if!(false, drop(s));
+    libu::u_brk_if!(false, 'label, drop(s));
+  }
+}
+```
+*/
+#[macro_export]
+macro_rules! u_brk_if {
+  ($expr:expr) => {
+    if $expr {
+      break;
+    }
+  };
+  ($expr:expr, $label:lifetime) => {
+    if $expr {
+      break $label;
+    }
+  };
+  ($expr:expr, $label:lifetime, $stmt:stmt) => {
+    if $expr {
+      $stmt;
+      break $label;
+    }
+  };
+  ($expr:expr, $stmt:stmt) => {
+    if $expr {
+      $stmt;
+      break;
+    }
+  };
+}
+
+/**
+[`u_cnt_if`]
+
+```rust
+fn main() {
+  let s = String::from("hello");
+
+  'label: loop {
+    break;
+
+    libu::u_cnt_if!(false);
+    libu::u_cnt_if!(false, 'label);
+    libu::u_cnt_if!(false, drop(s));
+    libu::u_cnt_if!(false, 'label, drop(s));
+  }
+}
+```
+*/
+#[macro_export]
+macro_rules! u_cnt_if {
+  ($expr:expr) => {
+    if $expr {
+      continue;
+    }
+  };
+  ($expr:expr, $label:lifetime) => {
+    if $expr {
+      continue $label;
+    }
+  };
+  ($expr:expr, $label:lifetime, $stmt:stmt) => {
+    if $expr {
+      $stmt;
+      continue $label;
+    }
+  };
+  ($expr:expr, $stmt:stmt) => {
+    if $expr {
+      $stmt;
+      continue;
+    }
+  };
+}
+
+/**
 [`when`]
 
 ```rust
