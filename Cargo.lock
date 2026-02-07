@@ -220,6 +220,7 @@ dependencies = [
 name = "libu-timer"
 version = "0.1.0"
 dependencies = [
+ "libu-derive",
  "libu-point",
 ]
 

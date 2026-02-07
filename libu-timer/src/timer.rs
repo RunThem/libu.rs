@@ -7,14 +7,23 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+use libu_derive::*;
+use libu_point::*;
+
 const WHEEL_SIZE: usize = 4096;
 const TIMER: std::sync::LazyLock<Timer> = std::sync::LazyLock::new(|| Timer::new());
 
-pub fn delay(delay: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
+pub fn delay<F>(delay: usize, f: F) -> TimerHandle
+where
+  F: FnMut() + Send + 'static,
+{
   TIMER.delay(delay, f)
 }
 
-pub fn ticker(repeat: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
+pub fn ticker<F>(repeat: usize, f: F) -> TimerHandle
+where
+  F: FnMut() + Send + 'static,
+{
   TIMER.ticker(repeat, f)
 }
 
@@ -32,33 +41,36 @@ unsafe impl Sync for TimerTask {}
 unsafe impl Send for TimerTask {}
 
 impl TimerTask {
-  fn new(delay: usize, repeat: Option<usize>, f: impl FnMut() + Send + 'static) -> Self {
+  fn new<F>(delay: usize, repeat: Option<usize>, f: F) -> Self
+  where
+    F: FnMut() + Send + 'static,
+  {
     Self {
       remove: false,
       run: true,
-      delay: delay,
-      repeat: repeat,
-      callback: Box::new(f),
+      delay,
+      repeat,
+      callback: f.iBox(),
     }
   }
 }
 
-pub struct TimerHandle {
-  inner: Arc<Mutex<TimerTask>>,
-}
+pub struct TimerHandle(Mrc<TimerTask>);
 
 impl TimerHandle {
   pub fn start(&mut self) {
-    self.inner.try_lock().unwrap().run = true;
+    self.0.with_mut(|x| x.run = true);
   }
 
   pub fn stop(&mut self) {
-    self.inner.try_lock().unwrap().run = false;
+    self.0.with_mut(|x| x.run = false);
   }
 
   pub fn remove(&mut self) {
-    self.inner.try_lock().unwrap().run = false;
-    self.inner.try_lock().unwrap().remove = true;
+    self.0.with_mut(|x| {
+      x.run = false;
+      x.remove = true;
+    });
   }
 }
 
@@ -75,76 +87,87 @@ impl TimerWheel {
     }
   }
 
-  fn delay(&mut self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
+  fn delay<F>(&mut self, delay: usize, f: F) -> TimerHandle
+  where
+    F: FnMut() + Send + 'static,
+  {
     let delay = self.tick + delay;
 
-    let task = Arc::new(Mutex::new(TimerTask::new(delay, None, f)));
+    let task = TimerTask::new(delay, None, f).iMrc();
     self.buckets[delay % WHEEL_SIZE].push_back(task.clone());
 
-    TimerHandle { inner: task }
+    TimerHandle(task)
   }
 
-  fn ticker(&mut self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
+  fn ticker<F>(&mut self, repeat: usize, f: F) -> TimerHandle
+  where
+    F: FnMut() + Send + 'static,
+  {
     let delay = self.tick + repeat;
 
-    let task = Arc::new(Mutex::new(TimerTask::new(delay, Some(repeat), f)));
+    let task = TimerTask::new(delay, Some(repeat), f).iMrc();
     self.buckets[delay % WHEEL_SIZE].push_back(task.clone());
 
-    TimerHandle { inner: task }
+    TimerHandle(task)
   }
 
   fn update(&mut self) {
     let tasks = self.buckets[self.tick % WHEEL_SIZE]
-      .extract_if(|t| t.try_lock().unwrap().delay == self.tick)
+      .extract_if(|t| t.with(|x| x.delay == self.tick))
       .collect::<Vec<_>>();
 
     for task in tasks {
-      let mut task_mut = task.lock().unwrap();
-      if task_mut.run {
-        (task_mut.callback)();
-      }
+      task.with_mut(|x| {
+        if x.run {
+          (x.callback)();
 
-      if !task_mut.remove
-        && let Some(repeat) = task_mut.repeat
-      {
-        task_mut.delay = self.tick + repeat;
-      }
+          if let Some(repeat) = x.repeat {
+            if !x.remove {
+              x.delay = self.tick + repeat;
+            }
+          };
 
-      self.buckets[task_mut.delay % WHEEL_SIZE].push_back(task.clone());
+          self.buckets[x.delay % WHEEL_SIZE].push_back(task.clone());
+        }
+      })
     }
 
     self.tick += 1;
   }
 }
 
-pub struct Timer {
-  inner: Arc<Mutex<TimerWheel>>,
-}
+pub struct Timer(Mrc<TimerWheel>);
 
 impl Timer {
-  pub fn new() -> Self {
-    let this = Self {
-      inner: Arc::new(Mutex::new(TimerWheel::new())),
-    };
+  /// 0.1s
+  const TICK: Duration = Duration::from_millis(100);
 
-    let timer = Arc::clone(&this.inner);
-    const TICK: Duration = Duration::from_millis(100);
+  pub fn new() -> Self {
+    let inner = TimerWheel::new().iMrc();
+
+    #[clone(inner)]
     thread::spawn(move || {
       loop {
-        thread::sleep(TICK);
+        thread::sleep(Self::TICK);
 
-        timer.try_lock().unwrap().update();
+        inner.with_mut(|x| x.update());
       }
     });
 
-    this
+    Self(inner)
   }
 
-  pub fn delay(&self, delay: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
-    self.inner.lock().unwrap().delay(delay, f)
+  pub fn delay<F>(&self, delay: usize, f: F) -> TimerHandle
+  where
+    F: FnMut() + Send + 'static,
+  {
+    self.0.with_mut(|x| x.delay(delay, f))
   }
 
-  pub fn ticker(&self, repeat: usize, f: impl FnMut() + Send + 'static) -> TimerHandle {
-    self.inner.lock().unwrap().ticker(repeat, f)
+  pub fn ticker<F>(&self, repeat: usize, f: F) -> TimerHandle
+  where
+    F: FnMut() + Send + 'static,
+  {
+    self.0.with_mut(|x| x.ticker(repeat, f))
   }
 }
