@@ -179,8 +179,10 @@ dependencies = [
  "libu-chan",
  "libu-derive",
  "libu-log",
+ "libu-macro",
  "libu-point",
  "libu-timer",
+ "libu-trait",
 ]
 
 [[package]]
@@ -210,6 +212,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "libu-macro"
+version = "0.1.0"
+
+[[package]]
 name = "libu-point"
 version = "0.1.0"
 dependencies = [
@@ -222,6 +228,13 @@ version = "0.1.0"
 dependencies = [
  "libu-derive",
  "libu-point",
+]
+
+[[package]]
+name = "libu-trait"
+version = "0.1.0"
+dependencies = [
+ "extend",
 ]
 
 [[package]]

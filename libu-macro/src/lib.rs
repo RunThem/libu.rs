@@ -1,19 +1,19 @@
 /**
-[`u_chk_if`]
+[`chk_if`]
 
 ```rust
 fn main() {
   let s = String::from("hello");
 
-  libu::u_chk_if!(false);
-  libu::u_chk_if!(false, ());
-  libu::u_chk_if!(false, drop(s));
-  libu::u_chk_if!(false, (), drop(s));
+  libu::chk_if!(false);
+  libu::chk_if!(false, ());
+  libu::chk_if!(false, drop(s));
+  libu::chk_if!(false, (), drop(s));
 }
 ```
 */
 #[macro_export]
-macro_rules! u_chk_if {
+macro_rules! chk_if {
   ($expr:expr) => {
     if $expr {
       return;
@@ -39,7 +39,7 @@ macro_rules! u_chk_if {
 }
 
 /**
-[`u_brk_if`]
+[`brk_if`]
 
 ```rust
 fn main() {
@@ -48,16 +48,16 @@ fn main() {
   'label: loop {
     break;
 
-    libu::u_brk_if!(false);
-    libu::u_brk_if!(false, 'label);
-    libu::u_brk_if!(false, drop(s));
-    libu::u_brk_if!(false, 'label, drop(s));
+    libu::brk_if!(false);
+    libu::brk_if!(false, 'label);
+    libu::brk_if!(false, drop(s));
+    libu::brk_if!(false, 'label, drop(s));
   }
 }
 ```
 */
 #[macro_export]
-macro_rules! u_brk_if {
+macro_rules! brk_if {
   ($expr:expr) => {
     if $expr {
       break;
@@ -83,7 +83,7 @@ macro_rules! u_brk_if {
 }
 
 /**
-[`u_cnt_if`]
+[`cnt_if`]
 
 ```rust
 fn main() {
@@ -92,16 +92,16 @@ fn main() {
   'label: loop {
     break;
 
-    libu::u_cnt_if!(false);
-    libu::u_cnt_if!(false, 'label);
-    libu::u_cnt_if!(false, drop(s));
-    libu::u_cnt_if!(false, 'label, drop(s));
+    libu::cnt_if!(false);
+    libu::cnt_if!(false, 'label);
+    libu::cnt_if!(false, drop(s));
+    libu::cnt_if!(false, 'label, drop(s));
   }
 }
 ```
 */
 #[macro_export]
-macro_rules! u_cnt_if {
+macro_rules! cnt_if {
   ($expr:expr) => {
     if $expr {
       continue;

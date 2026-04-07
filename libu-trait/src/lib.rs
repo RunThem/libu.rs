@@ -54,9 +54,10 @@ impl<T, F: Fn(&T) -> bool> Vec<T> {
     let mut r = Self::with_capacity(self.len());
 
     while i < self.len() {
-      crate::when! {
-        predicate(&self[i]) => r.push(self.remove(i)),
-        @ => i+=1,
+      if predicate(&self[i]) {
+        r.push(self.remove(i));
+      } else {
+        i += 1;
       }
     }
 
