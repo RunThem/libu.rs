@@ -1,3 +1,37 @@
+//! Single-level timing wheel with a 100ms tick.
+//!
+//! # Resolution and range
+//!
+//! - Tick resolution: 100ms. Durations are rounded up to the next tick.
+//! - Wheel size: 4096 buckets, so a task targeting `tick + N` lands in
+//!   `buckets[(tick + N) % 4096]`.
+//! - There is no upper bound on `Duration`. Tasks with delays larger
+//!   than one wheel rotation (~409 seconds) still fire correctly: each
+//!   task carries its absolute target tick, and dispatch only fires
+//!   tasks whose target tick matches the current tick exactly.
+//!
+//! # Performance characteristics
+//!
+//! - Registration is O(1) plus a per-bucket mutex acquisition.
+//! - Dispatch scans only the current tick's bucket, not the whole wheel.
+//! - However, long-delay tasks remain pinned to one bucket for their
+//!   entire lifetime. Each wheel rotation (~409s) the dispatcher walks
+//!   that bucket and checks every task. Workloads with very large
+//!   numbers of long-delay tasks (e.g. hundreds of thousands of tasks
+//!   each ~hours out) will see this scan cost grow.
+//!
+//!   A hierarchical timing wheel would amortize this by cascading
+//!   long-delay tasks down through coarser levels. It is not
+//!   implemented here.
+//!
+//! # Concurrency
+//!
+//! - `tick` is an `AtomicU64` written only by the worker thread.
+//! - Each of the 4096 buckets has its own `Mutex`. Registration and
+//!   dispatch only contend when they target the same bucket.
+//! - Callbacks run with no bucket lock held, so a slow callback does
+//!   not block concurrent registrations.
+
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
