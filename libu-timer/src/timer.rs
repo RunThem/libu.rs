@@ -125,7 +125,17 @@ impl TimerWheel {
         }
 
         if x.run {
-          (x.callback)();
+          // Isolate callback panics so they cannot kill the timer
+          // thread. A task that panics is marked for removal to avoid
+          // repeated panics on every fire.
+          let callback = &mut x.callback;
+          let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            || callback(),
+          ));
+          if result.is_err() {
+            x.remove = true;
+            return None;
+          }
         }
 
         // Tickers stay in the wheel even when stopped, so `start()` can
