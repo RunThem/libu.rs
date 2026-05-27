@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 
 use libu_derive::*;
 use libu_point::*;
@@ -158,8 +159,15 @@ impl Timer {
 
     #[clone(inner)]
     thread::spawn(move || {
+      // Schedule against absolute deadlines so update() execution time
+      // does not accumulate as drift on top of each sleep.
+      let mut next = Instant::now() + Self::TICK;
       loop {
-        thread::sleep(Self::TICK);
+        let now = Instant::now();
+        if next > now {
+          thread::sleep(next - now);
+        }
+        next += Self::TICK;
 
         inner.with_mut(|x| x.update());
       }
