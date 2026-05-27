@@ -34,9 +34,6 @@ struct TimerTask {
   callback: TimerTaskCallback,
 }
 
-unsafe impl Sync for TimerTask {}
-unsafe impl Send for TimerTask {}
-
 impl TimerTask {
   fn new<F>(delay: usize, repeat: Option<usize>, f: F) -> Self
   where
