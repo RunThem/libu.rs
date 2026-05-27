@@ -50,18 +50,19 @@ impl TimerTask {
   }
 }
 
+#[derive(Clone)]
 pub struct TimerHandle(Mrc<TimerTask>);
 
 impl TimerHandle {
-  pub fn start(&mut self) {
+  pub fn start(&self) {
     self.0.with_mut(|x| x.run = true);
   }
 
-  pub fn stop(&mut self) {
+  pub fn stop(&self) {
     self.0.with_mut(|x| x.run = false);
   }
 
-  pub fn remove(&mut self) {
+  pub fn remove(&self) {
     self.0.with_mut(|x| {
       x.run = false;
       x.remove = true;
