@@ -11,14 +11,14 @@ use libu_point::*;
 const WHEEL_SIZE: usize = 4096;
 const TIMER: std::sync::LazyLock<Timer> = std::sync::LazyLock::new(|| Timer::new());
 
-pub fn delay<F>(delay: usize, f: F) -> TimerHandle
+pub fn delay<F>(delay: Duration, f: F) -> TimerHandle
 where
   F: FnMut() + Send + 'static,
 {
   TIMER.delay(delay, f)
 }
 
-pub fn ticker<F>(repeat: usize, f: F) -> TimerHandle
+pub fn ticker<F>(repeat: Duration, f: F) -> TimerHandle
 where
   F: FnMut() + Send + 'static,
 {
@@ -176,17 +176,29 @@ impl Timer {
     Self(inner)
   }
 
-  pub fn delay<F>(&self, delay: usize, f: F) -> TimerHandle
+  pub fn delay<F>(&self, delay: Duration, f: F) -> TimerHandle
   where
     F: FnMut() + Send + 'static,
   {
-    self.0.with_mut(|x| x.delay(delay, f))
+    let ticks = Self::duration_to_ticks(delay);
+    self.0.with_mut(|x| x.delay(ticks, f))
   }
 
-  pub fn ticker<F>(&self, repeat: usize, f: F) -> TimerHandle
+  pub fn ticker<F>(&self, repeat: Duration, f: F) -> TimerHandle
   where
     F: FnMut() + Send + 'static,
   {
-    self.0.with_mut(|x| x.ticker(repeat, f))
+    let ticks = Self::duration_to_ticks(repeat);
+    self.0.with_mut(|x| x.ticker(ticks, f))
+  }
+
+  /// Convert a Duration to a tick count, rounding up so the task never
+  /// fires earlier than requested. The wheel itself clamps zero-tick
+  /// values to one tick, so a sub-tick duration still schedules.
+  fn duration_to_ticks(d: Duration) -> usize {
+    let tick_nanos = Self::TICK.as_nanos();
+    let d_nanos = d.as_nanos();
+    let ticks = d_nanos.div_ceil(tick_nanos);
+    usize::try_from(ticks).unwrap_or(usize::MAX)
   }
 }
