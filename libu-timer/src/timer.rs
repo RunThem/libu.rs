@@ -1,4 +1,3 @@
-use std::collections::LinkedList;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
@@ -88,14 +87,16 @@ impl TimerHandle {
 
 struct TimerWheel {
   tick: u64,
-  buckets: [LinkedList<Arc<Mutex<TimerTask>>>; WHEEL_SIZE],
+  buckets: Box<[Vec<Arc<Mutex<TimerTask>>>; WHEEL_SIZE]>,
 }
 
 impl TimerWheel {
   fn new() -> Self {
     Self {
       tick: 0,
-      buckets: std::array::from_fn(|_| LinkedList::new()),
+      // Box the array so we don't put a ~64KB stack allocation on
+      // every Timer construction.
+      buckets: Box::new(std::array::from_fn(|_| Vec::new())),
     }
   }
 
@@ -114,7 +115,7 @@ impl TimerWheel {
     let fire_at = self.tick.saturating_add(delay.max(1));
 
     let task = TimerTask::new(fire_at, None, f).iMrc();
-    self.buckets[Self::bucket_of(fire_at)].push_back(task.clone());
+    self.buckets[Self::bucket_of(fire_at)].push(task.clone());
 
     TimerHandle(task)
   }
@@ -127,15 +128,16 @@ impl TimerWheel {
     let fire_at = self.tick.saturating_add(repeat);
 
     let task = TimerTask::new(fire_at, Some(repeat), f).iMrc();
-    self.buckets[Self::bucket_of(fire_at)].push_back(task.clone());
+    self.buckets[Self::bucket_of(fire_at)].push(task.clone());
 
     TimerHandle(task)
   }
 
   fn update(&mut self) {
     let current = self.tick;
-    let tasks = self.buckets[Self::bucket_of(current)]
-      .extract_if(|t| t.with(|x| x.delay == current))
+    let bucket = Self::bucket_of(current);
+    let tasks = self.buckets[bucket]
+      .extract_if(.., |t| t.with(|x| x.delay == current))
       .collect::<Vec<_>>();
 
     for task in tasks {
@@ -173,7 +175,7 @@ impl TimerWheel {
       });
 
       if let Some(bucket) = next_bucket {
-        self.buckets[bucket].push_back(task);
+        self.buckets[bucket].push(task);
       }
     }
 
