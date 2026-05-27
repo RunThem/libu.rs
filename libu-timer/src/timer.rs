@@ -70,6 +70,20 @@ impl TimerHandle {
       x.remove = true;
     });
   }
+
+  /// Returns `true` if the task is currently scheduled to fire.
+  ///
+  /// A removed task returns `false`. A stopped (but not removed) ticker
+  /// also returns `false`; calling `start()` will resume it.
+  pub fn is_running(&self) -> bool {
+    self.0.with(|x| x.run && !x.remove)
+  }
+
+  /// Returns `true` once `remove()` has been called or the callback
+  /// panicked (panicking tasks are auto-removed).
+  pub fn is_removed(&self) -> bool {
+    self.0.with(|x| x.remove)
+  }
 }
 
 struct TimerWheel {
