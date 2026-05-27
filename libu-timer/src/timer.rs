@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -185,7 +187,13 @@ impl TimerWheel {
   }
 }
 
-pub struct Timer(Mrc<TimerWheel>);
+pub struct Timer {
+  inner: Mrc<TimerWheel>,
+  shutdown: Arc<AtomicBool>,
+  /// `None` once the worker thread has been joined, or for the global
+  /// `LazyLock<Timer>` (which intentionally never shuts down).
+  worker: Mutex<Option<JoinHandle<()>>>,
+}
 
 impl Timer {
   /// 0.1s
@@ -193,24 +201,49 @@ impl Timer {
 
   pub fn new() -> Self {
     let inner = TimerWheel::new().iMrc();
+    let shutdown = Arc::new(AtomicBool::new(false));
 
-    #[clone(inner)]
-    thread::spawn(move || {
-      // Schedule against absolute deadlines so update() execution time
-      // does not accumulate as drift on top of each sleep.
-      let mut next = Instant::now() + Self::TICK;
-      loop {
-        let now = Instant::now();
-        if next > now {
-          thread::sleep(next - now);
+    let worker = {
+      #[clone(inner, shutdown)]
+      let handle = thread::spawn(move || {
+        // Schedule against absolute deadlines so update() execution time
+        // does not accumulate as drift on top of each sleep.
+        let mut next = Instant::now() + Self::TICK;
+        while !shutdown.load(Ordering::Acquire) {
+          let now = Instant::now();
+          if next > now {
+            // Sleep in short slices so shutdown is observed promptly
+            // even when the next tick is far away.
+            let remaining = next - now;
+            let slice = remaining.min(Self::TICK);
+            thread::sleep(slice);
+            continue;
+          }
+          next += Self::TICK;
+
+          inner.with_mut(|x| x.update());
         }
-        next += Self::TICK;
+      });
+      handle
+    };
 
-        inner.with_mut(|x| x.update());
-      }
-    });
+    Self {
+      inner,
+      shutdown,
+      worker: Mutex::new(Some(worker)),
+    }
+  }
 
-    Self(inner)
+  /// Stop the worker thread and wait for it to exit.
+  ///
+  /// Pending tasks are dropped without firing. After `shutdown`, the
+  /// timer no longer ticks; further `delay`/`ticker` calls will still
+  /// register tasks but they will never fire.
+  pub fn shutdown(&self) {
+    self.shutdown.store(true, Ordering::Release);
+    if let Some(handle) = self.worker.lock().unwrap_or_else(|e| e.into_inner()).take() {
+      let _ = handle.join();
+    }
   }
 
   pub fn delay<F>(&self, delay: Duration, f: F) -> TimerHandle
@@ -218,7 +251,7 @@ impl Timer {
     F: FnMut() + Send + 'static,
   {
     let ticks = Self::duration_to_ticks(delay);
-    self.0.with_mut(|x| x.delay(ticks, f))
+    self.inner.with_mut(|x| x.delay(ticks, f))
   }
 
   pub fn ticker<F>(&self, repeat: Duration, f: F) -> TimerHandle
@@ -226,7 +259,7 @@ impl Timer {
     F: FnMut() + Send + 'static,
   {
     let ticks = Self::duration_to_ticks(repeat);
-    self.0.with_mut(|x| x.ticker(ticks, f))
+    self.inner.with_mut(|x| x.ticker(ticks, f))
   }
 
   /// Convert a Duration to a tick count, rounding up so the task never
@@ -237,5 +270,11 @@ impl Timer {
     let d_nanos = d.as_nanos();
     let ticks = d_nanos.div_ceil(tick_nanos);
     u64::try_from(ticks).unwrap_or(u64::MAX)
+  }
+}
+
+impl Drop for Timer {
+  fn drop(&mut self) {
+    self.shutdown();
   }
 }
