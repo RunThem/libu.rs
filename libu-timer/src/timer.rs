@@ -238,11 +238,16 @@ impl TimerWheel {
   }
 }
 
-pub struct Timer {
-  inner: Arc<TimerWheel>,
+/// Shared timer handle. Cloning is cheap (a single `Arc` bump) and
+/// safe to send across threads. The worker thread is stopped and joined
+/// when the **last** clone is dropped.
+#[derive(Clone)]
+pub struct Timer(Arc<TimerInner>);
+
+struct TimerInner {
+  wheel: Arc<TimerWheel>,
   shutdown: Arc<AtomicBool>,
-  /// `None` once the worker thread has been joined, or for the global
-  /// `LazyLock<Timer>` (which intentionally never shuts down).
+  /// `None` once the worker thread has been joined.
   worker: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -251,11 +256,11 @@ impl Timer {
   const TICK: Duration = Duration::from_millis(100);
 
   pub fn new() -> Self {
-    let inner = Arc::new(TimerWheel::new());
+    let wheel = Arc::new(TimerWheel::new());
     let shutdown = Arc::new(AtomicBool::new(false));
 
     let worker = {
-      #[clone(inner, shutdown)]
+      #[clone(wheel, shutdown)]
       let handle = thread::spawn(move || {
         // Schedule against absolute deadlines so update() execution time
         // does not accumulate as drift on top of each sleep.
@@ -272,27 +277,34 @@ impl Timer {
           }
           next += Self::TICK;
 
-          inner.update();
+          wheel.update();
         }
       });
       handle
     };
 
-    Self {
-      inner,
+    Self(Arc::new(TimerInner {
+      wheel,
       shutdown,
       worker: Mutex::new(Some(worker)),
-    }
+    }))
   }
 
   /// Stop the worker thread and wait for it to exit.
   ///
   /// Pending tasks are dropped without firing. After `shutdown`, the
   /// timer no longer ticks; further `delay`/`ticker` calls will still
-  /// register tasks but they will never fire.
+  /// register tasks but they will never fire. Safe to call from any
+  /// clone and to call multiple times.
   pub fn shutdown(&self) {
-    self.shutdown.store(true, Ordering::Release);
-    if let Some(handle) = self.worker.lock().unwrap_or_else(|e| e.into_inner()).take() {
+    self.0.shutdown.store(true, Ordering::Release);
+    if let Some(handle) = self
+      .0
+      .worker
+      .lock()
+      .unwrap_or_else(|e| e.into_inner())
+      .take()
+    {
       let _ = handle.join();
     }
   }
@@ -302,7 +314,7 @@ impl Timer {
     F: FnMut() + Send + 'static,
   {
     let ticks = Self::duration_to_ticks(delay);
-    self.inner.delay(ticks, f)
+    self.0.wheel.delay(ticks, f)
   }
 
   pub fn ticker<F>(&self, repeat: Duration, f: F) -> TimerHandle
@@ -310,7 +322,7 @@ impl Timer {
     F: FnMut() + Send + 'static,
   {
     let ticks = Self::duration_to_ticks(repeat);
-    self.inner.ticker(ticks, f)
+    self.0.wheel.ticker(ticks, f)
   }
 
   /// Convert a Duration to a tick count, rounding up so the task never
@@ -324,8 +336,13 @@ impl Timer {
   }
 }
 
-impl Drop for Timer {
+impl Drop for TimerInner {
   fn drop(&mut self) {
-    self.shutdown();
+    // Only reached when the last Timer clone is dropped, since Timer
+    // holds Arc<TimerInner>. Stop the worker and join it.
+    self.shutdown.store(true, Ordering::Release);
+    if let Some(handle) = self.worker.lock().unwrap_or_else(|e| e.into_inner()).take() {
+      let _ = handle.join();
+    }
   }
 }
