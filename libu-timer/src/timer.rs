@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -88,17 +88,21 @@ impl TimerHandle {
 }
 
 struct TimerWheel {
-  tick: u64,
-  buckets: Box<[Vec<Arc<Mutex<TimerTask>>>; WHEEL_SIZE]>,
+  /// Monotonically advances each `update()`. Written only by the
+  /// worker thread; read by `delay`/`ticker` to compute target buckets.
+  tick: AtomicU64,
+  /// One mutex per bucket. Registration and dispatch only contend when
+  /// they target the same bucket.
+  buckets: Box<[Mutex<Vec<Arc<Mutex<TimerTask>>>>; WHEEL_SIZE]>,
 }
 
 impl TimerWheel {
   fn new() -> Self {
     Self {
-      tick: 0,
+      tick: AtomicU64::new(0),
       // Box the array so we don't put a ~64KB stack allocation on
       // every Timer construction.
-      buckets: Box::new(std::array::from_fn(|_| Vec::new())),
+      buckets: Box::new(std::array::from_fn(|_| Mutex::new(Vec::new()))),
     }
   }
 
@@ -106,7 +110,13 @@ impl TimerWheel {
     (tick % WHEEL_SIZE as u64) as usize
   }
 
-  fn delay<F>(&mut self, delay: u64, f: F) -> TimerHandle
+  fn lock_bucket(&self, bucket: usize) -> std::sync::MutexGuard<'_, Vec<Arc<Mutex<TimerTask>>>> {
+    self.buckets[bucket]
+      .lock()
+      .unwrap_or_else(|e| e.into_inner())
+  }
+
+  fn delay<F>(&self, delay: u64, f: F) -> TimerHandle
   where
     F: FnMut() + Send + 'static,
   {
@@ -114,33 +124,38 @@ impl TimerWheel {
     // bucket, which update() may have already processed this cycle,
     // forcing the task to wait an entire wheel rotation.
     // Use saturating_add so absurdly large delays cannot overflow.
-    let fire_at = self.tick.saturating_add(delay.max(1));
+    let fire_at = self.tick.load(Ordering::Acquire).saturating_add(delay.max(1));
 
     let task = TimerTask::new(fire_at, None, f).iMrc();
-    self.buckets[Self::bucket_of(fire_at)].push(task.clone());
+    self.lock_bucket(Self::bucket_of(fire_at)).push(task.clone());
 
     TimerHandle(task)
   }
 
-  fn ticker<F>(&mut self, repeat: u64, f: F) -> TimerHandle
+  fn ticker<F>(&self, repeat: u64, f: F) -> TimerHandle
   where
     F: FnMut() + Send + 'static,
   {
     let repeat = repeat.max(1);
-    let fire_at = self.tick.saturating_add(repeat);
+    let fire_at = self.tick.load(Ordering::Acquire).saturating_add(repeat);
 
     let task = TimerTask::new(fire_at, Some(repeat), f).iMrc();
-    self.buckets[Self::bucket_of(fire_at)].push(task.clone());
+    self.lock_bucket(Self::bucket_of(fire_at)).push(task.clone());
 
     TimerHandle(task)
   }
 
-  fn update(&mut self) {
-    let current = self.tick;
+  fn update(&self) {
+    let current = self.tick.load(Ordering::Acquire);
     let bucket = Self::bucket_of(current);
-    let tasks = self.buckets[bucket]
-      .extract_if(.., |t| t.with(|x| x.delay == current))
-      .collect::<Vec<_>>();
+
+    // Only hold the bucket lock long enough to extract due tasks, then
+    // release so callbacks (which may take arbitrary time) don't block
+    // concurrent delay/ticker registrations.
+    let tasks: Vec<Arc<Mutex<TimerTask>>> = {
+      let mut guard = self.lock_bucket(bucket);
+      guard.extract_if(.., |t| t.with(|x| x.delay == current)).collect()
+    };
 
     for task in tasks {
       // Decide whether to re-insert and where to schedule next.
@@ -177,18 +192,20 @@ impl TimerWheel {
       });
 
       if let Some(bucket) = next_bucket {
-        self.buckets[bucket].push(task);
+        self.lock_bucket(bucket).push(task);
       }
     }
 
     // saturating_add: the wheel becomes effectively frozen at u64::MAX,
-    // but that takes ~58 billion years at 100ms ticks.
-    self.tick = self.tick.saturating_add(1);
+    // but that takes ~58 billion years at 100ms ticks. The worker
+    // thread is the only writer, so a plain load/store is sufficient.
+    let next = current.saturating_add(1);
+    self.tick.store(next, Ordering::Release);
   }
 }
 
 pub struct Timer {
-  inner: Mrc<TimerWheel>,
+  inner: Arc<TimerWheel>,
   shutdown: Arc<AtomicBool>,
   /// `None` once the worker thread has been joined, or for the global
   /// `LazyLock<Timer>` (which intentionally never shuts down).
@@ -200,7 +217,7 @@ impl Timer {
   const TICK: Duration = Duration::from_millis(100);
 
   pub fn new() -> Self {
-    let inner = TimerWheel::new().iMrc();
+    let inner = Arc::new(TimerWheel::new());
     let shutdown = Arc::new(AtomicBool::new(false));
 
     let worker = {
@@ -221,7 +238,7 @@ impl Timer {
           }
           next += Self::TICK;
 
-          inner.with_mut(|x| x.update());
+          inner.update();
         }
       });
       handle
@@ -251,7 +268,7 @@ impl Timer {
     F: FnMut() + Send + 'static,
   {
     let ticks = Self::duration_to_ticks(delay);
-    self.inner.with_mut(|x| x.delay(ticks, f))
+    self.inner.delay(ticks, f)
   }
 
   pub fn ticker<F>(&self, repeat: Duration, f: F) -> TimerHandle
@@ -259,7 +276,7 @@ impl Timer {
     F: FnMut() + Send + 'static,
   {
     let ticks = Self::duration_to_ticks(repeat);
-    self.inner.with_mut(|x| x.ticker(ticks, f))
+    self.inner.ticker(ticks, f)
   }
 
   /// Convert a Duration to a tick count, rounding up so the task never
