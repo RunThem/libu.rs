@@ -85,7 +85,10 @@ impl TimerWheel {
   where
     F: FnMut() + Send + 'static,
   {
-    let delay = self.tick + delay;
+    // Clamp to at least 1 tick. A delay of 0 would target the current
+    // bucket, which update() may have already processed this cycle,
+    // forcing the task to wait an entire wheel rotation.
+    let delay = self.tick + delay.max(1);
 
     let task = TimerTask::new(delay, None, f).iMrc();
     self.buckets[delay % WHEEL_SIZE].push_back(task.clone());
@@ -97,6 +100,7 @@ impl TimerWheel {
   where
     F: FnMut() + Send + 'static,
   {
+    let repeat = repeat.max(1);
     let delay = self.tick + repeat;
 
     let task = TimerTask::new(delay, Some(repeat), f).iMrc();
