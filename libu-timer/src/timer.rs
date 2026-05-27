@@ -30,13 +30,15 @@ type TimerTaskCallback = Box<dyn FnMut() + Send + 'static>;
 struct TimerTask {
   remove: bool,
   run: bool,
-  delay: usize,
-  repeat: Option<usize>,
+  /// Absolute tick at which this task should fire next.
+  delay: u64,
+  /// Repeat interval in ticks. `None` means one-shot.
+  repeat: Option<u64>,
   callback: TimerTaskCallback,
 }
 
 impl TimerTask {
-  fn new<F>(delay: usize, repeat: Option<usize>, f: F) -> Self
+  fn new<F>(delay: u64, repeat: Option<u64>, f: F) -> Self
   where
     F: FnMut() + Send + 'static,
   {
@@ -71,7 +73,7 @@ impl TimerHandle {
 }
 
 struct TimerWheel {
-  tick: usize,
+  tick: u64,
   buckets: [LinkedList<Arc<Mutex<TimerTask>>>; WHEEL_SIZE],
 }
 
@@ -83,37 +85,43 @@ impl TimerWheel {
     }
   }
 
-  fn delay<F>(&mut self, delay: usize, f: F) -> TimerHandle
+  fn bucket_of(tick: u64) -> usize {
+    (tick % WHEEL_SIZE as u64) as usize
+  }
+
+  fn delay<F>(&mut self, delay: u64, f: F) -> TimerHandle
   where
     F: FnMut() + Send + 'static,
   {
     // Clamp to at least 1 tick. A delay of 0 would target the current
     // bucket, which update() may have already processed this cycle,
     // forcing the task to wait an entire wheel rotation.
-    let delay = self.tick + delay.max(1);
+    // Use saturating_add so absurdly large delays cannot overflow.
+    let fire_at = self.tick.saturating_add(delay.max(1));
 
-    let task = TimerTask::new(delay, None, f).iMrc();
-    self.buckets[delay % WHEEL_SIZE].push_back(task.clone());
+    let task = TimerTask::new(fire_at, None, f).iMrc();
+    self.buckets[Self::bucket_of(fire_at)].push_back(task.clone());
 
     TimerHandle(task)
   }
 
-  fn ticker<F>(&mut self, repeat: usize, f: F) -> TimerHandle
+  fn ticker<F>(&mut self, repeat: u64, f: F) -> TimerHandle
   where
     F: FnMut() + Send + 'static,
   {
     let repeat = repeat.max(1);
-    let delay = self.tick + repeat;
+    let fire_at = self.tick.saturating_add(repeat);
 
-    let task = TimerTask::new(delay, Some(repeat), f).iMrc();
-    self.buckets[delay % WHEEL_SIZE].push_back(task.clone());
+    let task = TimerTask::new(fire_at, Some(repeat), f).iMrc();
+    self.buckets[Self::bucket_of(fire_at)].push_back(task.clone());
 
     TimerHandle(task)
   }
 
   fn update(&mut self) {
-    let tasks = self.buckets[self.tick % WHEEL_SIZE]
-      .extract_if(|t| t.with(|x| x.delay == self.tick))
+    let current = self.tick;
+    let tasks = self.buckets[Self::bucket_of(current)]
+      .extract_if(|t| t.with(|x| x.delay == current))
       .collect::<Vec<_>>();
 
     for task in tasks {
@@ -143,8 +151,8 @@ impl TimerWheel {
         // stopped are dropped (their fire time has passed).
         match x.repeat {
           Some(repeat) => {
-            x.delay = self.tick + repeat;
-            Some(x.delay % WHEEL_SIZE)
+            x.delay = current.saturating_add(repeat);
+            Some(Self::bucket_of(x.delay))
           }
           None => None,
         }
@@ -155,7 +163,9 @@ impl TimerWheel {
       }
     }
 
-    self.tick += 1;
+    // saturating_add: the wheel becomes effectively frozen at u64::MAX,
+    // but that takes ~58 billion years at 100ms ticks.
+    self.tick = self.tick.saturating_add(1);
   }
 }
 
@@ -206,10 +216,10 @@ impl Timer {
   /// Convert a Duration to a tick count, rounding up so the task never
   /// fires earlier than requested. The wheel itself clamps zero-tick
   /// values to one tick, so a sub-tick duration still schedules.
-  fn duration_to_ticks(d: Duration) -> usize {
+  fn duration_to_ticks(d: Duration) -> u64 {
     let tick_nanos = Self::TICK.as_nanos();
     let d_nanos = d.as_nanos();
     let ticks = d_nanos.div_ceil(tick_nanos);
-    usize::try_from(ticks).unwrap_or(usize::MAX)
+    u64::try_from(ticks).unwrap_or(u64::MAX)
   }
 }
