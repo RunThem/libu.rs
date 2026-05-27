@@ -111,19 +111,32 @@ impl TimerWheel {
       .collect::<Vec<_>>();
 
     for task in tasks {
-      task.with_mut(|x| {
+      // Decide whether to re-insert and where to schedule next.
+      // Returns Some(next_bucket) if the task should remain in the wheel.
+      let next_bucket = task.with_mut(|x| {
+        if x.remove {
+          return None;
+        }
+
         if x.run {
           (x.callback)();
-
-          if let Some(repeat) = x.repeat {
-            if !x.remove {
-              x.delay = self.tick + repeat;
-            }
-          };
-
-          self.buckets[x.delay % WHEEL_SIZE].push_back(task.clone());
         }
-      })
+
+        // Tickers stay in the wheel even when stopped, so `start()` can
+        // resume them on the next repeat cycle. One-shot tasks that were
+        // stopped are dropped (their fire time has passed).
+        match x.repeat {
+          Some(repeat) => {
+            x.delay = self.tick + repeat;
+            Some(x.delay % WHEEL_SIZE)
+          }
+          None => None,
+        }
+      });
+
+      if let Some(bucket) = next_bucket {
+        self.buckets[bucket].push_back(task);
+      }
     }
 
     self.tick += 1;
