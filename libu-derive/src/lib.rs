@@ -32,6 +32,7 @@
 
 mod builder;
 mod clone;
+mod select;
 
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
@@ -113,7 +114,8 @@ pub fn derive_sync(input: TokenStream) -> TokenStream {
     /// SAFETY: The user has explicitly opted into this unsafe implementation.
     /// They must ensure this type is actually safe to share across threads.
     unsafe impl Sync for #ident {}
-  }.into()
+  }
+  .into()
 }
 
 /// **unsafe** - Implement `Send` trait
@@ -146,7 +148,8 @@ pub fn derive_send(input: TokenStream) -> TokenStream {
     /// SAFETY: The user has explicitly opted into this unsafe implementation.
     /// They must ensure this type is actually safe to transfer across threads.
     unsafe impl Send for #ident {}
-  }.into()
+  }
+  .into()
 }
 
 /// Auto-clone variables in closures
@@ -180,4 +183,32 @@ pub fn derive_send(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn clone(attr: TokenStream, item: TokenStream) -> TokenStream {
   clone::clone(attr, item)
+}
+
+/// Wait on multiple channel operations simultaneously.
+///
+/// Expands each arm into a `flume::Selector::new().recv(...).recv(...).wait()` chain,
+/// allowing a thread to block until one of the registered channels becomes ready.
+///
+/// # Syntax
+///
+/// ```rust,ignore
+/// select! [
+///   &rx1 => |msg| { /* handle rx1 */ },
+///   &rx2 => |msg| { /* handle rx2 */ },
+/// ];
+/// ```
+///
+/// # Expansion
+///
+/// ```rust,ignore
+/// // Expands to:
+/// ::flume::Selector::new()
+///   .recv(&rx1, |msg| { /* handle rx1 */ })
+///   .recv(&rx2, |msg| { /* handle rx2 */ })
+///   .wait();
+/// ```
+#[proc_macro]
+pub fn select(item: TokenStream) -> TokenStream {
+  select::select(item)
 }
