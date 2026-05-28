@@ -1,6 +1,6 @@
 //! Procedural macros module
 //!
-//! Provides derive macros and attribute macros for common patterns.
+//! Provides derive macros, attribute macros, and function-like macros for common patterns.
 //!
 //! # Available Macros
 //!
@@ -17,6 +17,12 @@
 //! | Macro | Description |
 //! |-------|-------------|
 //! | [`clone`] | Auto-clone variables in closures |
+//!
+//! ## Function-like Macros
+//!
+//! | Macro | Description |
+//! |-------|-------------|
+//! | [`select!`] | Wait on multiple channel operations simultaneously |
 //!
 //! # Safety Warning
 //!
