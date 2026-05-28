@@ -3,6 +3,8 @@ name = "libu-timer"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-libu-point = { path = "../libu-point" }
-libu-derive = { path = "../libu-derive" }
+[dependencies.libu-point]
+path = "../libu-point"
+
+[dependencies.libu-derive]
+path = "../libu-derive"

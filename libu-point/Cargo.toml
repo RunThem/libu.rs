@@ -3,5 +3,5 @@ name = "libu-point"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-extend = "1.2.0"
+[dependencies.extend]
+version = "1.2.0"

@@ -19,12 +19,23 @@ members = [
 ]
 resolver = "2"
 
-[dependencies]
-libu-chan = { path = "libu-chan" }
-libu-point = { path = "libu-point" }
-libu-derive = { path = "libu-derive" }
-libu-timer = { path = "libu-timer" }
-libu-log = { path = "libu-log" }
-libu-trait = { path = "libu-trait" }
-libu-macro = { path = "libu-macro" }
-extend = "1.2.0"
+[dependencies.libu-chan]
+path = "libu-chan"
+
+[dependencies.libu-point]
+path = "libu-point"
+
+[dependencies.libu-derive]
+path = "libu-derive"
+
+[dependencies.libu-timer]
+path = "libu-timer"
+
+[dependencies.libu-log]
+path = "libu-log"
+
+[dependencies.libu-trait]
+path = "libu-trait"
+
+[dependencies.libu-macro]
+path = "libu-macro"

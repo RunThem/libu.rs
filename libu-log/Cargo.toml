@@ -3,7 +3,11 @@ name = "libu-log"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-chrono = "0.4.42"
-colored = "3.0.0"
-log = "0.4.28"
+[dependencies.chrono]
+version = "0.4.42"
+
+[dependencies.colored]
+version = "3.0.0"
+
+[dependencies.log]
+version = "0.4.28"
