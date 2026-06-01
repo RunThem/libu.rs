@@ -12,10 +12,7 @@ impl<T> T {
 #[extend::ext(pub, name = AtMrc)]
 impl<T: Clone> Mrc<T> {
   fn at(&self) -> T {
-    self
-      .lock()
-      .unwrap_or_else(|poisoned| poisoned.into_inner())
-      .clone()
+    self.lock().unwrap().clone()
   }
 }
 
@@ -25,13 +22,13 @@ impl<T> Mrc<T> {
   where
     F: FnOnce(&T) -> R,
   {
-    f(&*self.lock().unwrap_or_else(|poisoned| poisoned.into_inner()))
+    f(&*self.lock().unwrap())
   }
 
   fn with_mut<F, R>(&self, f: F) -> R
   where
     F: FnOnce(&mut T) -> R,
   {
-    f(&mut *self.lock().unwrap_or_else(|poisoned| poisoned.into_inner()))
+    f(&mut *self.lock().unwrap())
   }
 }
