@@ -13,9 +13,6 @@
 //! | `str` | [`to_dur`] | Parse string to Duration |
 //! | `Vec<T>` | [`remove_if`] | Remove elements by condition |
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use extend::ext;
