@@ -1,4 +1,4 @@
-use flume::{Receiver, RecvError, SendError, Sender, TryRecvError, unbounded};
+pub use flume::{Receiver, RecvError, Selector, SendError, Sender, TryRecvError, unbounded};
 
 /// 点对点线程安全的双向消息队列
 pub struct Chan<S, R>(Sender<S>, Receiver<R>);

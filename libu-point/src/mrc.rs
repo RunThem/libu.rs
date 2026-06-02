@@ -1,4 +1,6 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+pub use parking_lot::{Mutex, MutexGuard};
+
+pub use std::sync::Arc;
 
 pub type Mrc<T> = Arc<Mutex<T>>;
 
@@ -12,7 +14,7 @@ impl<T> T {
 #[extend::ext(pub, name = AtMrc)]
 impl<T: Clone> Mrc<T> {
   fn at(&self) -> T {
-    self.lock().unwrap().clone()
+    self.lock().clone()
   }
 }
 
@@ -22,13 +24,13 @@ impl<T> Mrc<T> {
   where
     F: FnOnce(&T) -> R,
   {
-    f(&*self.lock().unwrap())
+    f(&*self.lock())
   }
 
   fn with_mut<F, R>(&self, f: F) -> R
   where
     F: FnOnce(&mut T) -> R,
   {
-    f(&mut *self.lock().unwrap())
+    f(&mut *self.lock())
   }
 }

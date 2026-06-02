@@ -19,6 +19,14 @@ members = [
 ]
 resolver = "2"
 
+[dependencies.parking_lot]
+version = "0.12.5"
+
+[dependencies.flume]
+version = "0.12.0"
+default-features = false
+features = ['select']
+
 [dependencies.libu-chan]
 path = "libu-chan"
 
