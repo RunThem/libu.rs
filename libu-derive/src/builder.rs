@@ -1,7 +1,7 @@
 use darling::{ast, util};
 use proc_macro2::{Ident, TokenStream as Ts};
 use quote::quote;
-use syn::{Attribute, Error, PathArguments, Type, TypePath, Visibility};
+use syn::{Attribute, PathArguments, Type, TypePath, Visibility};
 
 #[derive(Debug, darling::FromField)]
 #[darling(attributes(builder), forward_attrs(allow, doc, cfg))]
@@ -45,7 +45,6 @@ pub(crate) struct BuilderDeriveInput {
 
 impl quote::ToTokens for BuilderDeriveInput {
   fn to_tokens(&self, tokens: &mut Ts) {
-    let mut init = vec![];
     let mut fields = vec![];
     let mut methods = vec![];
     let mut build = vec![];
@@ -58,33 +57,16 @@ impl quote::ToTokens for BuilderDeriveInput {
       generics,
     } = self;
 
-    if !data.is_struct() {
-      tokens.extend(Error::new_spanned(self, "Builder can only be derived for structs").to_compile_error());
-      return;
-    }
-
     let builder_ident = Ident::new(&format!("{ident}Builder"), ident.span());
     let struct_fields = data.as_ref().take_struct().unwrap();
-
-    if !struct_fields.style.is_struct() {
-      tokens.extend(Error::new_spanned(self, "Builder requires named struct fields").to_compile_error());
-      return;
-    }
 
     for field in struct_fields {
       let Field {
         ident, ty, attrs, ..
       } = field;
 
-      if ident.is_none() {
-        tokens.extend(Error::new_spanned(ident, "Field has no identifier").to_compile_error());
-        return;
-      }
-
       let ident = ident.as_ref().unwrap();
       let (ty, is_option) = get_option_inner_type(ty);
-
-      init.push(quote! (#ident: std::option::Option::None));
 
       fields.push(quote! {
         #(#attrs)*

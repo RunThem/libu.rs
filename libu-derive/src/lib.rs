@@ -94,10 +94,10 @@ use quote::ToTokens;
 pub fn derive_builder(input: TokenStream) -> TokenStream {
   let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
-  builder::BuilderDeriveInput::from_derive_input(&input)
-    .unwrap()
-    .to_token_stream()
-    .into()
+  match builder::BuilderDeriveInput::from_derive_input(&input) {
+    Ok(b) => b.to_token_stream().into(),
+    Err(e) => e.write_errors().into(),
+  }
 }
 
 /// **unsafe** - Implement `Sync` trait
