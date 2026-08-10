@@ -1,0 +1,5 @@
+error: `with-x` is not a valid setter name (from `#[builder(prefix = ...)]`)
+ --> tests/ui/invalid_prefix.rs:6:3
+  |
+6 |   x: u32,
+  |   ^

@@ -1,0 +1,5 @@
+error: `#[builder(default = ...)]` is ignored on `Option<T>` fields: pass the value explicitly via `with_<field>_opt(Some(...))` or drop the attribute
+ --> tests/ui/option_default.rs:6:3
+  |
+6 |   x: Option<u32>,
+  |   ^

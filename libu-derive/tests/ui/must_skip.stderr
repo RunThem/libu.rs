@@ -1,0 +1,5 @@
+error: `#[builder(must)]` and `#[builder(skip)]` cannot be combined: skip removes the setter, so the field could never be initialized
+ --> tests/ui/must_skip.rs:6:3
+  |
+6 |   x: u32,
+  |   ^

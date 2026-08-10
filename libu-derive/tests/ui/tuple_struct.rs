@@ -1,0 +1,6 @@
+use libu_derive::Builder;
+
+#[derive(Builder)]
+struct S(u32);
+
+fn main() {}

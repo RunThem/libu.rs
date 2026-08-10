@@ -1,0 +1,5 @@
+error: Unknown field: `bogus`. Available values: `default`, `into`, `must`, `prefix`, `private`, `skip`
+ --> tests/ui/unknown_attribute.rs:5:13
+  |
+5 |   #[builder(bogus)]
+  |             ^^^^^

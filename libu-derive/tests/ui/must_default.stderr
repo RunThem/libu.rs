@@ -1,0 +1,5 @@
+error: `#[builder(must)]` and `#[builder(default = ...)]` cannot be combined: `must` panics when unset, which makes the default unreachable
+ --> tests/ui/must_default.rs:6:3
+  |
+6 |   x: u32,
+  |   ^
