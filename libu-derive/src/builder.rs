@@ -17,6 +17,11 @@ pub(crate) struct Field {
   #[darling(default)]
   pub(crate) into: bool,
 
+  /// Setter method name prefix. Defaults to `with_`; an empty string
+  /// disables the prefix (`#[builder(prefix = "")]`).
+  #[darling(default)]
+  pub(crate) prefix: Option<String>,
+
   /// Field must be initialized (panics if not set)
   #[darling(default)]
   pub(crate) must: bool,
@@ -73,16 +78,21 @@ impl quote::ToTokens for BuilderDeriveInput {
         #ident: std::option::Option<#ty>
       });
 
+      let setter_ident = Ident::new(
+        &format!("{}{ident}", field.prefix.as_deref().unwrap_or("with_")),
+        ident.span(),
+      );
+
       let method = if field.into {
         quote! {
-          pub fn #ident(mut self, #ident: impl Into<#ty>) -> Self {
+          pub fn #setter_ident(mut self, #ident: impl Into<#ty>) -> Self {
             self.#ident = std::option::Option::Some(#ident.into());
             self
           }
         }
       } else {
         quote! {
-          pub fn #ident(mut self, #ident: #ty) -> Self {
+          pub fn #setter_ident(mut self, #ident: #ty) -> Self {
             self.#ident = std::option::Option::Some(#ident);
             self
           }
