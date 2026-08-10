@@ -39,6 +39,8 @@
 mod builder;
 mod clone;
 mod select;
+mod send;
+mod sync;
 
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
@@ -147,15 +149,7 @@ pub fn derive_builder(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_derive(Sync)]
 pub fn derive_sync(input: TokenStream) -> TokenStream {
-  let input = syn::parse_macro_input!(input as syn::DeriveInput);
-  let ident = input.ident;
-
-  quote::quote! {
-    /// SAFETY: The user has explicitly opted into this unsafe implementation.
-    /// They must ensure this type is actually safe to share across threads.
-    unsafe impl Sync for #ident {}
-  }
-  .into()
+  sync::expand(input.into()).into()
 }
 
 /// **unsafe** - Implement `Send` trait
@@ -181,15 +175,7 @@ pub fn derive_sync(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_derive(Send)]
 pub fn derive_send(input: TokenStream) -> TokenStream {
-  let input = syn::parse_macro_input!(input as syn::DeriveInput);
-  let ident = input.ident;
-
-  quote::quote! {
-    /// SAFETY: The user has explicitly opted into this unsafe implementation.
-    /// They must ensure this type is actually safe to transfer across threads.
-    unsafe impl Send for #ident {}
-  }
-  .into()
+  send::expand(input.into()).into()
 }
 
 /// Auto-clone variables in closures
