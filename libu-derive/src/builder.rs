@@ -159,7 +159,9 @@ impl quote::ToTokens for BuilderDeriveInput {
           tokens.extend(
             Error::new_spanned(
               ident,
-              format!("`{setter_name}` is not a valid setter name (from `#[builder(prefix = ...)]`)"),
+              format!(
+                "`{setter_name}` is not a valid setter name (from `#[builder(prefix = ...)]`)"
+              ),
             )
             .to_compile_error(),
           );
