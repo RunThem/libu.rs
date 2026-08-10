@@ -49,23 +49,37 @@ use quote::ToTokens;
 /// Creates a `TypeNameBuilder` struct with setter methods for each field,
 /// and adds a `builder()` method to the original struct.
 ///
+/// # Setter Naming
+///
+/// Setters are named `with_<field>` by default. `#[builder(prefix = "...")]`
+/// overrides the prefix per field; an empty string disables it:
+///
+/// - `#[builder(prefix = "set_")]` - generate `set_<field>` instead of `with_<field>`
+/// - `#[builder(prefix = "")]` - generate `<field>` with no prefix
+///
 /// # Field Attributes
 ///
-/// - `#[builder(into)]` - Accept `impl Into<T>` in setter method
+/// - `#[builder(into)]` - Accept `impl Into<T>` in setter method.
+///   Defaults to on for `String` fields, so both `&str` and `String` work;
+///   `#[builder(into = false)]` opts a `String` field back out of it
 /// - `#[builder(must)]` - Field must be initialized (panics if not set)
 /// - `#[builder(default = <expr>)]` - Use `<expr>` as the default when the field
 ///   is not set, e.g. for enums without `Default`: `#[builder(default = Mode::Test)]`
+/// - `#[builder(skip)]` - Keep the field in the builder but generate no setter,
+///   useful with `#[builder(default = ...)]` for internal state
+/// - `#[builder(private)]` - Setter is `pub(crate)` instead of `pub`
 ///
 /// # Behavior
 ///
-/// - `Option<T>` fields: kept as Option, no default required
+/// - `Option<T>` fields: kept as Option, no default required; get two setters,
+///   `with_<field>(T)` and `with_<field>_opt(Option<T>)`
 /// - Other fields: use `Default::default()` if not set, unless `#[builder(must)]`
 ///   or `#[builder(default = ...)]` overrides it
 ///
 /// # Example
 ///
 /// ```rust
-/// use libu::Builder;
+/// use libu_derive::Builder;
 ///
 /// enum Mode {
 ///   Test,
@@ -75,19 +89,17 @@ use quote::ToTokens;
 /// #[derive(Builder)]
 /// struct Config {
 ///   name: String,
-///   #[builder(into)]
+///   #[builder(must)]
 ///   path: String,
 ///   timeout: Option<u64>,
-///   #[builder(must)]
-///   required_field: i32,
 ///   #[builder(default = Mode::Test)]
 ///   mode: Mode,
 /// }
 ///
 /// let config = Config::builder()
-///   .name("app")
-///   .path("/tmp/config")
-///   .required_field(42)
+///   .with_name("app")
+///   .with_path("/tmp/config")
+///   .with_timeout(100)
 ///   .build();
 /// ```
 #[proc_macro_derive(Builder, attributes(builder))]

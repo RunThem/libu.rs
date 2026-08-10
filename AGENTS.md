@@ -5,7 +5,7 @@ Rust utilities workspace. **Requires the nightly toolchain** — the root crate 
 ## Build and Test
 
 - Build / check: `cargo build`, `cargo check`
-- Test: `cargo test --workspace` — the 4 `libu-derive` doctests currently fail (`E0432: unresolved import 'libu'`). Do **not** "fix" them by adding a `libu` dev-dependency to `libu-derive` (that would create a dependency cycle); the intended fix is `ignore`/`no_run` on the doctests.
+- Test: `cargo test --workspace` — 3 of the `libu-derive` doctests still fail (`E0432: unresolved import 'libu'`); the `Builder` doctest was fixed by importing `libu_derive` directly. Do **not** "fix" the rest by adding a `libu` dev-dependency to `libu-derive` (that would create a dependency cycle); the intended fix is `ignore`/`no_run` on the doctests.
 - Format: `cargo fmt` (2-space indent, see `.rustfmt.toml`)
 - **Do not run `xmake`** — the `test` task in `tasks.json` is stale; there is no `xmake.lua` in this repo.
 
@@ -15,7 +15,7 @@ Umbrella root crate re-exports all 7 workspace members (`pub use libu_*::*`) and
 
 | Crate | Role |
 |-------|------|
-| `libu-derive` | proc-macros: `Builder` derive (`#[builder(into)]`, `#[builder(must)]`, `#[builder(default = expr)]`), **unsafe** `Send`/`Sync` derives, `#[clone]` attribute, `select!` macro |
+| `libu-derive` | proc-macros: `Builder` derive (`with_`-prefixed setters, `#[builder(prefix)]`/`skip`/`private`/`into`/`must`/`default = expr`; `Option` fields get dual setters, `String` fields default to `impl Into<String>`), **unsafe** `Send`/`Sync` derives, `#[clone]` attribute, `select!` macro |
 | `libu-point` | pointer helpers: `iBox`, `Mrc<T> = Arc<parking_lot::Mutex<T>>`, `Urc<T> = Rc<RefCell<T>>` with `iMrc`/`iUrc`, `at()`, `with()`/`with_mut()` |
 | `libu-timer` | 4096-bucket / 100ms-tick timing wheel; free fns `delay`/`ticker`, types `Timer`/`TimerHandle`. Depends on `libu-point` + `#[clone]` |
 | `libu-chan` | `Chan<S,R>` bidirectional point-to-point channel over two flume `unbounded` channels |
