@@ -13,9 +13,13 @@ pub(crate) struct Field {
   /// Field attributes (supports allow/doc/cfg)
   pub(crate) attrs: Vec<Attribute>,
 
-  /// Accept `impl Into<T>` in setter method
+  /// Accept `impl Into<T>` in setter method.
+  ///
+  /// Defaults to on for `String` fields (so both `&str` and `String`
+  /// work); `#[builder(into)]` forces it on for any field,
+  /// `#[builder(into = false)]` forces it off.
   #[darling(default)]
-  pub(crate) into: bool,
+  pub(crate) into: Option<bool>,
 
   /// Setter method name prefix. Defaults to `with_`; an empty string
   /// disables the prefix (`#[builder(prefix = "")]`).
@@ -98,9 +102,11 @@ impl quote::ToTokens for BuilderDeriveInput {
         quote! (pub)
       };
 
+      let into = field.into.unwrap_or(is_string(ty));
+
       let method = if field.skip {
         quote! ()
-      } else if field.into {
+      } else if into {
         quote! {
           #setter_vis fn #setter_ident(mut self, #ident: impl Into<#ty>) -> Self {
             self.#ident = std::option::Option::Some(#ident.into());
@@ -198,4 +204,14 @@ fn get_option_inner_type(ty: &Type) -> (&Type, bool) {
   }
 
   (ty, false)
+}
+
+fn is_string(ty: &Type) -> bool {
+  if let Type::Path(TypePath { path, .. }) = ty
+    && let Some(segment) = path.segments.last()
+  {
+    return segment.ident == "String";
+  }
+
+  false
 }
