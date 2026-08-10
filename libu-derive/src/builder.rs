@@ -3,6 +3,27 @@ use proc_macro2::{Ident, TokenStream as Ts};
 use quote::quote;
 use syn::{Attribute, Error, PathArguments, Type, TypePath, Visibility};
 
+/// Rust strict keywords, which proc-macro2 accepts as identifiers but the
+/// generated code would never compile with.
+const RUST_KEYWORDS: &[&str] = &[
+  "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
+  "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move",
+  "mut", "pub", "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true",
+  "type", "unsafe", "use", "where", "while",
+];
+
+/// True when `s` is a valid ASCII identifier body (`[A-Za-z_][A-Za-z0-9_]*`).
+/// Non-ASCII (Unicode XID) identifiers are conservatively rejected; callers
+/// report them as invalid setter names.
+fn is_ident_chars(s: &str) -> bool {
+  let mut chars = s.chars();
+  match chars.next() {
+    Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+    _ => return false,
+  }
+  chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 #[derive(Debug, darling::FromField)]
 #[darling(attributes(builder), forward_attrs(allow, doc, cfg))]
 pub(crate) struct Field {
@@ -153,21 +174,37 @@ impl quote::ToTokens for BuilderDeriveInput {
       defaults.push(quote! (#ident: std::option::Option::None));
 
       let setter_name = format!("{}{ident}", field.prefix.as_deref().unwrap_or("with_"));
-      let setter_ident = match syn::parse_str::<Ident>(&setter_name) {
-        Ok(ident) => ident,
-        Err(_) => {
-          tokens.extend(
-            Error::new_spanned(
-              ident,
-              format!(
-                "`{setter_name}` is not a valid setter name (from `#[builder(prefix = ...)]`)"
-              ),
-            )
-            .to_compile_error(),
-          );
-          return;
-        }
+      // Validate before constructing: Ident::new would panic on bad input, and
+      // a keyword would only fail later with a generic rustc error. The check
+      // keeps the field's span on the generated identifier.
+      let setter_ident = if is_ident_chars(&setter_name) {
+        Ident::new(&setter_name, ident.span())
+      } else {
+        tokens.extend(
+          Error::new_spanned(
+            ident,
+            format!(
+              "`{setter_name}` is not a valid setter name (from `#[builder(prefix = ...)]`)"
+            ),
+          )
+          .to_compile_error(),
+        );
+        return;
       };
+
+      if !field.skip && RUST_KEYWORDS.contains(&setter_name.as_str()) {
+        tokens.extend(
+          Error::new_spanned(
+            ident,
+            format!(
+              "`{setter_name}` is not a valid setter name (reserved keyword); \
+               use `#[builder(prefix = ...)]` or rename the field"
+            ),
+          )
+          .to_compile_error(),
+        );
+        return;
+      }
 
       if !field.skip && (setter_name == "build" || setter_name == "default") {
         tokens.extend(
@@ -246,13 +283,18 @@ impl quote::ToTokens for BuilderDeriveInput {
     let struct_params = quote! (<#(#generics_params), *>);
 
     // Impl-head declaration: keep bounds but drop defaults, which are not
-    // allowed on impls (`struct S<T = i32>`).
+    // allowed on impls (`struct S<T = i32>`, `struct S<const N: usize = 4>`).
     let mut impl_generics = generics.params.clone();
-    impl_generics.iter_mut().for_each(|t| {
-      if let syn::GenericParam::Type(t) = t {
+    impl_generics.iter_mut().for_each(|t| match t {
+      syn::GenericParam::Type(t) => {
         t.eq_token = None;
         t.default = None;
       }
+      syn::GenericParam::Const(c) => {
+        c.eq_token = None;
+        c.default = None;
+      }
+      syn::GenericParam::Lifetime(_) => {}
     });
     let impl_generics = quote! (<#(#impl_generics), *>);
 
