@@ -1,0 +1,5 @@
+error: setter name `with_x_opt` is generated for multiple fields; rename one of them or adjust `#[builder(prefix = ...)]`
+ --> tests/ui/cross_field_collision.rs:7:3
+  |
+7 |   x_opt: u32,
+  |   ^^^^^

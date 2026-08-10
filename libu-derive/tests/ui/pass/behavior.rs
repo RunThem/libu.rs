@@ -14,6 +14,13 @@ struct Arr<const N: usize> {
   data: [u8; N],
 }
 
+// const generic parameter with a default value
+#[derive(Builder)]
+struct ArrD<const N: usize = 8> {
+  #[builder(must)]
+  data: [u8; N],
+}
+
 // default type parameter
 #[derive(Builder)]
 struct Def<T = i32> {
@@ -47,6 +54,10 @@ fn main() {
   // const generics
   let a = Arr::<4>::builder().with_data([1, 2, 3, 4]).build();
   assert_eq!(a.data, [1, 2, 3, 4]);
+
+  // const generic with a default parameter value
+  let ad = ArrD::builder().with_data([1, 2]).build();
+  assert_eq!(ad.data, [1, 2]);
 
   // default type parameter, both the default and an explicit substitution
   let d = Def::builder().with_val(3).build();

@@ -1,0 +1,5 @@
+error: `abstract` is not a valid setter name (reserved keyword); use `#[builder(prefix = ...)]` or rename the field
+ --> tests/ui/keyword_setter.rs:7:3
+  |
+7 |   t: u32,
+  |   ^
