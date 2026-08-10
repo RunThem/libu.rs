@@ -1,4 +1,4 @@
-error: `#[builder(must)]` is ignored on `Option<T>` fields: the setter already takes `T`, and an unset field is `None`; drop the attribute or use a non-Option field type
+error: `#[builder(must)]` cannot be used on `Option<T>` fields: the setter already takes `T`, and an unset field is `None`; drop the attribute or use a non-Option field type
  --> tests/ui/option_must.rs:6:3
   |
 6 |   x: Option<u32>,
