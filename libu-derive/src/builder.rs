@@ -3,26 +3,15 @@ use proc_macro2::{Ident, TokenStream as Ts};
 use quote::quote;
 use syn::{Attribute, Error, PathArguments, Type, TypePath, Visibility};
 
-/// Rust strict keywords, which proc-macro2 accepts as identifiers but the
-/// generated code would never compile with.
+/// Rust strict and reserved keywords, which proc-macro2 accepts as
+/// identifiers but the generated code would never compile with.
 const RUST_KEYWORDS: &[&str] = &[
-  "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern",
-  "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub",
-  "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe",
-  "use", "where", "while",
+  "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
+  "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move",
+  "mut", "pub", "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true",
+  "type", "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final",
+  "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try", "union",
 ];
-
-/// True when `s` is a valid ASCII identifier body (`[A-Za-z_][A-Za-z0-9_]*`).
-/// Non-ASCII (Unicode XID) identifiers are conservatively rejected; callers
-/// report them as invalid setter names.
-fn is_ident_chars(s: &str) -> bool {
-  let mut chars = s.chars();
-  match chars.next() {
-    Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
-    _ => return false,
-  }
-  chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
 
 #[derive(Debug, darling::FromField)]
 #[darling(attributes(builder), forward_attrs(allow, doc, cfg))]
@@ -153,23 +142,13 @@ impl quote::ToTokens for BuilderDeriveInput {
       defaults.push(quote! (#ident: std::option::Option::None));
 
       let setter_name = format!("{}{ident}", field.prefix.as_deref().unwrap_or("with_"));
-      // Validate before constructing: Ident::new would panic on bad input, and
-      // a keyword would only fail later with a generic rustc error. The check
-      // keeps the field's span on the generated identifier.
-      let setter_ident = if is_ident_chars(&setter_name) {
+      // Validate before constructing: the XID check in syn's Ident parse
+      // matches rustc (including Unicode identifiers), and rebuilding with
+      // the field's span keeps error locations on the field. syn rejects
+      // keywords outright, so the keyword table only refines the message.
+      let setter_ident = if syn::parse_str::<Ident>(&setter_name).is_ok() {
         Ident::new(&setter_name, ident.span())
-      } else {
-        tokens.extend(
-          Error::new_spanned(
-            ident,
-            format!("`{setter_name}` is not a valid setter name (from `#[builder(prefix = ...)]`)"),
-          )
-          .to_compile_error(),
-        );
-        return;
-      };
-
-      if !field.skip && RUST_KEYWORDS.contains(&setter_name.as_str()) {
+      } else if RUST_KEYWORDS.contains(&setter_name.as_str()) {
         tokens.extend(
           Error::new_spanned(
             ident,
@@ -181,7 +160,16 @@ impl quote::ToTokens for BuilderDeriveInput {
           .to_compile_error(),
         );
         return;
-      }
+      } else {
+        tokens.extend(
+          Error::new_spanned(
+            ident,
+            format!("`{setter_name}` is not a valid setter name (from `#[builder(prefix = ...)]`)"),
+          )
+          .to_compile_error(),
+        );
+        return;
+      };
 
       if !field.skip && (setter_name == "build" || setter_name == "default") {
         tokens.extend(
