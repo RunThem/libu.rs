@@ -57,24 +57,36 @@ use quote::ToTokens;
 /// - `#[builder(prefix = "set_")]` - generate `set_<field>` instead of `with_<field>`
 /// - `#[builder(prefix = "")]` - generate `<field>` with no prefix
 ///
+/// The prefix must produce a valid identifier (`prefix = "with-"` is a
+/// compile error), and a setter that would collide with the generated
+/// `build()`/`default()` methods is rejected.
+///
 /// # Field Attributes
 ///
 /// - `#[builder(into)]` - Accept `impl Into<T>` in setter method.
 ///   Defaults to on for `String` fields, so both `&str` and `String` work;
 ///   `#[builder(into = false)]` opts a `String` field back out of it
-/// - `#[builder(must)]` - Field must be initialized (panics if not set)
+/// - `#[builder(must)]` - Field must be initialized (panics if not set).
+///   Mutually exclusive with `skip` and `default = ...` (compile error)
 /// - `#[builder(default = <expr>)]` - Use `<expr>` as the default when the field
-///   is not set, e.g. for enums without `Default`: `#[builder(default = Mode::Test)]`
+///   is not set, e.g. for enums without `Default`: `#[builder(default = Mode::Test)]`.
+///   The expression is evaluated lazily, only when the field was not set.
+///   Not allowed on `Option<T>` fields (compile error); mutually exclusive with `must`
 /// - `#[builder(skip)]` - Keep the field in the builder but generate no setter,
-///   useful with `#[builder(default = ...)]` for internal state
+///   useful with `#[builder(default = ...)]` for internal state.
+///   Mutually exclusive with `must`
 /// - `#[builder(private)]` - Setter is `pub(crate)` instead of `pub`
 ///
 /// # Behavior
 ///
 /// - `Option<T>` fields: kept as Option, no default required; get two setters,
-///   `with_<field>(T)` and `with_<field>_opt(Option<T>)`
+///   `with_<field>(T)` and `with_<field>_opt(Option<T>)`. `must`/`default` are
+///   rejected on them (compile error) — pass values via the setters instead
 /// - Other fields: use `Default::default()` if not set, unless `#[builder(must)]`
-///   or `#[builder(default = ...)]` overrides it
+///   or `#[builder(default = ...)]` overrides it; a missing `Default` impl is
+///   reported with a diagnostic suggesting `must` or `default = ...`
+/// - Generics: lifetimes, type parameters (with bounds or defaults), const
+///   generics, and where clauses are supported on both the struct and the builder
 ///
 /// # Example
 ///
