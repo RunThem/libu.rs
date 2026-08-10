@@ -120,6 +120,31 @@ impl quote::ToTokens for BuilderDeriveInput {
         return;
       }
 
+      if is_option && field.must {
+        tokens.extend(
+          Error::new_spanned(
+            ident,
+            "`#[builder(must)]` is ignored on `Option<T>` fields: the setter already \
+             takes `T`, and an unset field is `None`; drop the attribute or use a \
+             non-Option field type",
+          )
+          .to_compile_error(),
+        );
+        return;
+      }
+
+      if is_option && field.default.is_some() {
+        tokens.extend(
+          Error::new_spanned(
+            ident,
+            "`#[builder(default = ...)]` is ignored on `Option<T>` fields: pass the \
+             value explicitly via `with_<field>_opt(Some(...))` or drop the attribute",
+          )
+          .to_compile_error(),
+        );
+        return;
+      }
+
       fields.push(quote! {
         #(#attrs)*
         #ident: std::option::Option<#ty>
