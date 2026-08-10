@@ -20,6 +20,13 @@ pub(crate) struct Field {
   /// Field must be initialized (panics if not set)
   #[darling(default)]
   pub(crate) must: bool,
+
+  /// Default value expression used when the field is not set.
+  ///
+  /// Takes precedence over `Default::default()`; useful for enums that don't
+  /// implement `Default` (e.g. `#[builder(default = Mode::Test)]`).
+  #[darling(default)]
+  pub(crate) default: Option<syn::Expr>,
 }
 
 #[derive(Debug, darling::FromDeriveInput)]
@@ -107,6 +114,8 @@ impl quote::ToTokens for BuilderDeriveInput {
       } else if field.must {
         let msg = format!("Field '{}' must be initialized", ident);
         build.push(quote! (#ident: self.#ident.expect(#msg)));
+      } else if let Some(default) = &field.default {
+        build.push(quote! (#ident: self.#ident.unwrap_or(#default)));
       } else {
         build.push(quote! (#ident: self.#ident.unwrap_or_default()));
       }

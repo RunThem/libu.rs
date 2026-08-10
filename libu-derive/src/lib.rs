@@ -53,16 +53,24 @@ use quote::ToTokens;
 ///
 /// - `#[builder(into)]` - Accept `impl Into<T>` in setter method
 /// - `#[builder(must)]` - Field must be initialized (panics if not set)
+/// - `#[builder(default = <expr>)]` - Use `<expr>` as the default when the field
+///   is not set, e.g. for enums without `Default`: `#[builder(default = Mode::Test)]`
 ///
 /// # Behavior
 ///
 /// - `Option<T>` fields: kept as Option, no default required
 /// - Other fields: use `Default::default()` if not set, unless `#[builder(must)]`
+///   or `#[builder(default = ...)]` overrides it
 ///
 /// # Example
 ///
 /// ```rust
 /// use libu::Builder;
+///
+/// enum Mode {
+///   Test,
+///   Release,
+/// }
 ///
 /// #[derive(Builder)]
 /// struct Config {
@@ -72,6 +80,8 @@ use quote::ToTokens;
 ///   timeout: Option<u64>,
 ///   #[builder(must)]
 ///   required_field: i32,
+///   #[builder(default = Mode::Test)]
+///   mode: Mode,
 /// }
 ///
 /// let config = Config::builder()
