@@ -373,3 +373,472 @@ fn is_std_named(ty: &Type, name: &str, module: &str) -> bool {
 
   false
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use darling::FromDeriveInput;
+  use quote::ToTokens;
+  use syn::parse_quote;
+
+  /// Run the full pipeline (parse + codegen) and return the generated tokens.
+  fn expand(input: syn::DeriveInput) -> String {
+    BuilderDeriveInput::from_derive_input(&input)
+      .unwrap()
+      .to_token_stream()
+      .to_string()
+  }
+
+  /// Like [`expand`], but surfaces parse errors (e.g. unknown attributes)
+  /// as their diagnostic text instead of panicking.
+  fn expand_or_errors(input: syn::DeriveInput) -> String {
+    match BuilderDeriveInput::from_derive_input(&input) {
+      Ok(b) => b.to_token_stream().to_string(),
+      Err(e) => e.write_errors().to_string(),
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Setter naming: with_ prefix, custom prefix, no prefix, validation
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn default_with_prefix() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct Server {
+        name: String,
+        #[builder(prefix = "set_")]
+        port: u16,
+        #[builder(prefix = "")]
+        host: String,
+        #[builder(skip, default = "default_region".to_string())]
+        region: String,
+        #[builder(private)]
+        secret: String,
+        #[builder(must)]
+        mode: Mode,
+        #[builder(default = Mode::Test)]
+        fallback: Mode,
+        timeout: Option<u64>,
+        #[builder(into)]
+        count: u32,
+      }
+    };
+    let out = expand(input);
+
+    // Default with_ prefix.
+    assert!(out.contains("fn with_name"), "{out}");
+    assert!(out.contains("fn with_timeout"), "{out}");
+    // prefix = "set_" overrides.
+    assert!(out.contains("fn set_port"), "{out}");
+    assert!(!out.contains("fn with_port"), "{out}");
+    // prefix = "" disables the prefix.
+    assert!(out.contains("fn host"), "{out}");
+    // skip: no setter at all.
+    assert!(!out.contains("fn with_region"), "{out}");
+    // private: pub(crate) setter.
+    assert!(out.contains("pub (crate) fn with_secret"), "{out}");
+    // Option fields get a second _opt setter; others do not.
+    assert!(out.contains("fn with_timeout_opt"), "{out}");
+    assert!(!out.contains("fn with_port_opt"), "{out}");
+    // String fields default to impl Into<String>; #[builder(into)] opts in.
+    assert!(out.contains("impl Into < String >"), "{out}");
+    assert!(
+      out.contains("fn with_count (mut self , count : impl Into < u32 >)"),
+      "{out}"
+    );
+    // must: expect with the field name baked in.
+    assert!(
+      out.contains("expect (\"Field 'mode' must be initialized\")"),
+      "{out}"
+    );
+    // default = expr: lazy unwrap_or_else, not eager unwrap_or.
+    assert!(out.contains("unwrap_or_else (|| Mode :: Test)"), "{out}");
+    // Option fields pass through without unwrapping.
+    assert!(out.contains("timeout : self . timeout"), "{out}");
+    // Hand-written Default impl instead of #[derive(Default)].
+    assert!(!out.contains("derive (Default)"), "{out}");
+    // Helper trait with the per-struct name and the diagnostic attribute.
+    assert!(out.contains("on_unimplemented"), "{out}");
+    assert!(out.contains("__ServerBuilderDefault"), "{out}");
+  }
+
+  #[test]
+  fn invalid_prefix_rejected() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(prefix = "with-")]
+        x: u32,
+      }
+    };
+
+    assert!(
+      expand_or_errors(input).contains("is not a valid setter name"),
+      "expected a compile_error for the invalid prefix"
+    );
+  }
+
+  #[test]
+  fn reserved_setter_names_rejected() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(prefix = "")]
+        build: u32,
+        #[builder(prefix = "")]
+        default: u32,
+      }
+    };
+
+    assert!(
+      expand_or_errors(input).contains("conflicts with a method generated"),
+      "expected a compile_error for setters colliding with build()/default()"
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Field options: skip, private, into, must, default
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn parses_field_attributes() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        a: u32,
+        #[builder(skip, default = 1)]
+        b: u32,
+        #[builder(must)]
+        c: u32,
+        #[builder(prefix = "set_")]
+        d: u32,
+        #[builder(into = false)]
+        e: String,
+        #[builder(private)]
+        f: u32,
+        #[builder(into)]
+        g: u32,
+      }
+    };
+    let parsed = BuilderDeriveInput::from_derive_input(&input).unwrap();
+    let fields: Vec<&Field> = parsed
+      .data
+      .as_ref()
+      .take_struct()
+      .unwrap()
+      .iter()
+      .copied()
+      .collect();
+
+    assert!(!fields[0].skip && !fields[0].must && fields[0].default.is_none());
+    assert!(fields[1].skip && fields[1].default.is_some());
+    assert!(fields[2].must);
+    assert_eq!(fields[3].prefix.as_deref(), Some("set_"));
+    assert_eq!(fields[4].into, Some(false));
+    assert!(fields[5].private);
+    assert_eq!(fields[6].into, Some(true));
+  }
+
+  #[test]
+  fn into_false_keeps_owned_param() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(into = false)]
+        tag: String,
+      }
+    };
+    let out = expand(input);
+
+    assert!(
+      out.contains("fn with_tag (mut self , tag : String)"),
+      "{out}"
+    );
+    assert!(!out.contains("impl Into"), "{out}");
+  }
+
+  #[test]
+  fn must_with_into() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(must, into)]
+        len: u64,
+      }
+    };
+    let out = expand(input);
+
+    assert!(out.contains("impl Into < u64 >"), "{out}");
+    assert!(out.contains("expect"), "{out}");
+  }
+
+  #[test]
+  fn default_expression_is_lazy() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(default = counter.fetch_add(1, Ordering::Relaxed))]
+        n: u32,
+      }
+    };
+    let out = expand(input);
+
+    assert!(out.contains("unwrap_or_else"), "{out}");
+    assert!(!out.contains("unwrap_or ("), "{out}");
+  }
+
+  #[test]
+  fn no_helper_trait_without_plain_fields() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(must)]
+        x: u32,
+        y: Option<u32>,
+      }
+    };
+    let out = expand(input);
+
+    assert!(!out.contains("on_unimplemented"), "{out}");
+  }
+
+  // -------------------------------------------------------------------------
+  // Option fields: dual setters, nesting, skip/private interplay
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn nested_option_strips_one_layer() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct Nested {
+        deep: Option<Option<u64>>,
+      }
+    };
+    let out = expand(input);
+
+    assert!(
+      out.contains("fn with_deep (mut self , deep : Option < u64 >)"),
+      "{out}"
+    );
+    assert!(
+      out.contains(
+        "fn with_deep_opt (mut self , deep_opt : std :: option :: Option < Option < u64 > >)"
+      ),
+      "{out}"
+    );
+    assert!(out.contains("deep : self . deep"), "{out}");
+  }
+
+  #[test]
+  fn skip_option_has_no_setter() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(skip)]
+        flag: Option<bool>,
+      }
+    };
+    let out = expand(input);
+
+    assert!(!out.contains("fn with_flag"), "{out}");
+    assert!(!out.contains("fn with_flag_opt"), "{out}");
+    assert!(out.contains("flag : self . flag"), "{out}");
+  }
+
+  #[test]
+  fn private_option_both_setters() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(private)]
+        token: Option<u32>,
+      }
+    };
+    let out = expand(input);
+
+    assert!(out.contains("pub (crate) fn with_token"), "{out}");
+    assert!(out.contains("pub (crate) fn with_token_opt"), "{out}");
+  }
+
+  #[test]
+  fn custom_option_type_not_misdetected() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct F {
+        #[builder(must)]
+        f: fake::Option<u32>,
+      }
+    };
+    let out = expand(input);
+
+    // fake::Option<T> keeps its own type: no stripping, no _opt setter.
+    assert!(
+      out.contains("fn with_f (mut self , f : fake :: Option < u32 >)"),
+      "{out}"
+    );
+    assert!(!out.contains("fn with_f_opt"), "{out}");
+  }
+
+  // -------------------------------------------------------------------------
+  // Generics: lifetimes, bounds, where clauses, const generics, defaults
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn lifetimes_and_where_clauses() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct WData<'a, T>
+      where
+        T: Default,
+      {
+        text: &'a str,
+        value: T,
+      }
+    };
+    let out = expand(input);
+
+    assert!(out.contains("WDataBuilder < 'a , T >"), "{out}");
+    assert!(out.contains("where T : Default"), "{out}");
+  }
+
+  #[test]
+  fn const_generics() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct Arr<const N: usize> {
+        #[builder(must)]
+        data: [u8; N],
+      }
+    };
+    let out = expand(input);
+
+    // impl head keeps the full declaration, type references use the bare ident.
+    assert!(
+      out.contains("impl < const N : usize > ArrBuilder < N >"),
+      "{out}"
+    );
+    assert!(
+      !out.contains("impl < const N : usize > ArrBuilder < const N : usize >"),
+      "{out}"
+    );
+  }
+
+  #[test]
+  fn default_type_param() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct Def<T = i32> {
+        #[builder(must)]
+        val: T,
+      }
+    };
+    let out = expand(input);
+
+    // struct declaration keeps the default; the impl head must not repeat it.
+    assert!(out.contains("struct DefBuilder < T = i32 >"), "{out}");
+    assert_eq!(out.matches("T = i32").count(), 1, "{out}");
+  }
+
+  #[test]
+  fn empty_struct() {
+    let input: syn::DeriveInput = parse_quote! { struct Empty {} };
+    let out = expand(input);
+
+    assert!(out.contains("struct EmptyBuilder"), "{out}");
+    assert!(out.contains("fn build (self)"), "{out}");
+  }
+
+  #[test]
+  fn helper_trait_is_per_struct() {
+    let a: syn::DeriveInput = parse_quote! { struct A { x: u32 } };
+    let b: syn::DeriveInput = parse_quote! { struct B { y: u32 } };
+    let out_a = expand(a);
+    let out_b = expand(b);
+
+    assert!(out_a.contains("__ABuilderDefault"), "{out_a}");
+    assert!(out_b.contains("__BBuilderDefault"), "{out_b}");
+    assert!(!out_a.contains("__BBuilderDefault"), "{out_a}");
+  }
+
+  // -------------------------------------------------------------------------
+  // Attribute combinations rejected at compile time
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn must_skip_conflict_rejected() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(must, skip)]
+        x: u32,
+      }
+    };
+
+    assert!(expand_or_errors(input).contains("cannot be combined"));
+  }
+
+  #[test]
+  fn must_default_conflict_rejected() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(must, default = 1)]
+        x: u32,
+      }
+    };
+
+    assert!(expand_or_errors(input).contains("cannot be combined"));
+  }
+
+  #[test]
+  fn option_must_rejected() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(must)]
+        x: Option<u32>,
+      }
+    };
+
+    assert!(expand_or_errors(input).contains("is ignored on `Option<T>` fields"));
+  }
+
+  #[test]
+  fn option_default_rejected() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(default = Some(5))]
+        x: Option<u32>,
+      }
+    };
+
+    assert!(expand_or_errors(input).contains("is ignored on `Option<T>` fields"));
+  }
+
+  #[test]
+  fn unknown_attribute_reports_error() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        #[builder(bogus)]
+        x: u32,
+      }
+    };
+
+    assert!(expand_or_errors(input).contains("Unknown field"));
+  }
+
+  // -------------------------------------------------------------------------
+  // Std path detection helpers
+  // -------------------------------------------------------------------------
+
+  #[test]
+  fn detects_std_option_and_string() {
+    let opt: syn::Type = parse_quote!(Option<u32>);
+    assert_eq!(get_option_inner_type(&opt).1, true);
+
+    let full: syn::Type = parse_quote!(::std::option::Option<u32>);
+    assert_eq!(get_option_inner_type(&full).1, true);
+
+    let core: syn::Type = parse_quote!(core::option::Option<u32>);
+    assert_eq!(get_option_inner_type(&core).1, true);
+
+    let fake: syn::Type = parse_quote!(fake::Option<u32>);
+    assert_eq!(get_option_inner_type(&fake).1, false);
+
+    let s: syn::Type = parse_quote!(String);
+    assert!(is_string(&s));
+
+    let s_full: syn::Type = parse_quote!(std::string::String);
+    assert!(is_string(&s_full));
+
+    let s_custom: syn::Type = parse_quote!(MyString);
+    assert!(!is_string(&s_custom));
+
+    let s_fake: syn::Type = parse_quote!(fake::String);
+    assert!(!is_string(&s_fake));
+  }
+}
