@@ -470,13 +470,20 @@ mod tests {
       .to_string()
   }
 
-  /// Like [`expand`], but surfaces parse errors (e.g. unknown attributes)
-  /// as their diagnostic text instead of panicking.
-  fn expand_or_errors(input: syn::DeriveInput) -> String {
-    match BuilderDeriveInput::from_derive_input(&input) {
-      Ok(b) => b.to_token_stream().to_string(),
-      Err(e) => e.write_errors().to_string(),
-    }
+  // Compile-error diagnostics live in tests/ui/ as trybuild snapshots: the
+  // compile-fail cases pin the exact error text and span, and the pass case
+  // compiles and runs the generated code. Error-path assertions belong there,
+  // not here, so that wording changes touch only the snapshots.
+  #[test]
+  fn trybuild_compile_fail() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/ui/*.rs");
+  }
+
+  #[test]
+  fn trybuild_compile_pass() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/ui/pass/*.rs");
   }
 
   // -------------------------------------------------------------------------
@@ -542,38 +549,6 @@ mod tests {
     // Helper trait with the per-struct name and the diagnostic attribute.
     assert!(out.contains("on_unimplemented"), "{out}");
     assert!(out.contains("__ServerBuilderDefault"), "{out}");
-  }
-
-  #[test]
-  fn invalid_prefix_rejected() {
-    let input: syn::DeriveInput = parse_quote! {
-      struct S {
-        #[builder(prefix = "with-")]
-        x: u32,
-      }
-    };
-
-    assert!(
-      expand_or_errors(input).contains("is not a valid setter name"),
-      "expected a compile_error for the invalid prefix"
-    );
-  }
-
-  #[test]
-  fn reserved_setter_names_rejected() {
-    let input: syn::DeriveInput = parse_quote! {
-      struct S {
-        #[builder(prefix = "")]
-        build: u32,
-        #[builder(prefix = "")]
-        default: u32,
-      }
-    };
-
-    assert!(
-      expand_or_errors(input).contains("conflicts with a method generated"),
-      "expected a compile_error for setters colliding with build()/default()"
-    );
   }
 
   // -------------------------------------------------------------------------
@@ -826,70 +801,6 @@ mod tests {
     assert!(out_a.contains("__ABuilderDefault"), "{out_a}");
     assert!(out_b.contains("__BBuilderDefault"), "{out_b}");
     assert!(!out_a.contains("__BBuilderDefault"), "{out_a}");
-  }
-
-  // -------------------------------------------------------------------------
-  // Attribute combinations rejected at compile time
-  // -------------------------------------------------------------------------
-
-  #[test]
-  fn must_skip_conflict_rejected() {
-    let input: syn::DeriveInput = parse_quote! {
-      struct S {
-        #[builder(must, skip)]
-        x: u32,
-      }
-    };
-
-    assert!(expand_or_errors(input).contains("cannot be combined"));
-  }
-
-  #[test]
-  fn must_default_conflict_rejected() {
-    let input: syn::DeriveInput = parse_quote! {
-      struct S {
-        #[builder(must, default = 1)]
-        x: u32,
-      }
-    };
-
-    assert!(expand_or_errors(input).contains("cannot be combined"));
-  }
-
-  #[test]
-  fn option_must_rejected() {
-    let input: syn::DeriveInput = parse_quote! {
-      struct S {
-        #[builder(must)]
-        x: Option<u32>,
-      }
-    };
-
-    assert!(expand_or_errors(input).contains("cannot be used on `Option<T>` fields"));
-  }
-
-  #[test]
-  fn option_default_rejected() {
-    let input: syn::DeriveInput = parse_quote! {
-      struct S {
-        #[builder(default = Some(5))]
-        x: Option<u32>,
-      }
-    };
-
-    assert!(expand_or_errors(input).contains("cannot be used on `Option<T>` fields"));
-  }
-
-  #[test]
-  fn unknown_attribute_reports_error() {
-    let input: syn::DeriveInput = parse_quote! {
-      struct S {
-        #[builder(bogus)]
-        x: u32,
-      }
-    };
-
-    assert!(expand_or_errors(input).contains("Unknown field"));
   }
 
   // -------------------------------------------------------------------------
