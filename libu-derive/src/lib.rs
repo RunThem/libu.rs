@@ -130,21 +130,33 @@ pub fn derive_builder(input: TokenStream) -> TokenStream {
 ///
 /// Forcefully implements `Sync` for a type using `unsafe impl`.
 ///
+/// Generics are supported: type and lifetime parameters and where clauses
+/// are carried through to the generated impl.
+///
 /// # Safety
 ///
 /// This macro bypasses Rust's automatic `Sync` verification. You must ensure
 /// that your type is actually safe to share across threads. Improper use can
 /// cause data races and undefined behavior.
 ///
+/// Note: if every field is already `Sync`, the type is automatically `Sync`
+/// and this derive is redundant.
+///
+/// Note: the generated impl is exempt from `#![forbid(unsafe_code)]`, like
+/// all derive-generated code — the guard does not flag it. Audit the types
+/// you apply this derive to yourself.
+///
 /// # Example
 ///
 /// ```rust
 /// use libu::Sync;
+/// use std::rc::Rc;
 ///
 /// // WARNING: Only use if you know this is safe!
+/// // `Rc` is neither `Send` nor `Sync`; the derive forces it.
 /// #[derive(Sync)]
 /// struct MyType {
-///   // fields must be thread-safe
+///   marker: Rc<()>,
 /// }
 /// ```
 #[proc_macro_derive(Sync)]
@@ -156,21 +168,33 @@ pub fn derive_sync(input: TokenStream) -> TokenStream {
 ///
 /// Forcefully implements `Send` for a type using `unsafe impl`.
 ///
+/// Generics are supported: type and lifetime parameters and where clauses
+/// are carried through to the generated impl.
+///
 /// # Safety
 ///
 /// This macro bypasses Rust's automatic `Send` verification. You must ensure
 /// that your type is actually safe to transfer across threads. Improper use can
 /// cause data races and undefined behavior.
 ///
+/// Note: if every field is already `Send`, the type is automatically `Send`
+/// and this derive is redundant.
+///
+/// Note: the generated impl is exempt from `#![forbid(unsafe_code)]`, like
+/// all derive-generated code — the guard does not flag it. Audit the types
+/// you apply this derive to yourself.
+///
 /// # Example
 ///
 /// ```rust
 /// use libu::Send;
+/// use std::rc::Rc;
 ///
 /// // WARNING: Only use if you know this is safe!
+/// // `Rc` is neither `Send` nor `Sync`; the derive forces it.
 /// #[derive(Send)]
 /// struct MyType {
-///   // fields must be safe to move across threads
+///   marker: Rc<()>,
 /// }
 /// ```
 #[proc_macro_derive(Send)]

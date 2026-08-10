@@ -6,11 +6,13 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
     Err(err) => return err.to_compile_error(),
   };
   let ident = input.ident;
+  let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
+  // SAFETY: The user has explicitly opted into this unsafe implementation.
+  // They must ensure this type is actually safe to transfer across threads.
   quote::quote! {
-    /// SAFETY: The user has explicitly opted into this unsafe implementation.
-    /// They must ensure this type is actually safe to transfer across threads.
-    unsafe impl Send for #ident {}
+    #[automatically_derived]
+    unsafe impl #impl_generics ::core::marker::Send for #ident #ty_generics #where_clause {}
   }
   .into()
 }
