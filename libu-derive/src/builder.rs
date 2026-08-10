@@ -97,15 +97,15 @@ impl quote::ToTokens for BuilderDeriveInput {
       );
 
       let setter_vis = if field.private {
-        quote! (pub(crate))
+        quote!(pub(crate))
       } else {
-        quote! (pub)
+        quote!(pub)
       };
 
       let into = field.into.unwrap_or(is_string(ty));
 
       let method = if field.skip {
-        quote! ()
+        quote!()
       } else if into {
         quote! {
           #setter_vis fn #setter_ident(mut self, #ident: impl Into<#ty>) -> Self {
