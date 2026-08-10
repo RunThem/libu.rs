@@ -818,7 +818,10 @@ mod tests {
   #[test]
   fn detects_std_option_and_string() {
     let opt: syn::Type = parse_quote!(Option<u32>);
-    assert_eq!(get_option_inner_type(&opt).1, true);
+    let (inner, is_opt) = get_option_inner_type(&opt);
+    assert!(is_opt);
+    // extra-traits: the inner type can be compared as an AST node.
+    assert_eq!(inner, &parse_quote!(u32));
 
     let full: syn::Type = parse_quote!(::std::option::Option<u32>);
     assert_eq!(get_option_inner_type(&full).1, true);
@@ -840,5 +843,27 @@ mod tests {
 
     let s_fake: syn::Type = parse_quote!(fake::String);
     assert!(!is_string(&s_fake));
+  }
+
+  #[test]
+  fn parses_field_types() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct S {
+        a: String,
+        b: Option<u64>,
+      }
+    };
+    let parsed = BuilderDeriveInput::from_derive_input(&input).unwrap();
+    let fields: Vec<&Field> = parsed
+      .data
+      .as_ref()
+      .take_struct()
+      .unwrap()
+      .iter()
+      .copied()
+      .collect();
+
+    assert_eq!(fields[0].ty, parse_quote!(String));
+    assert_eq!(fields[1].ty, parse_quote!(Option<u64>));
   }
 }
