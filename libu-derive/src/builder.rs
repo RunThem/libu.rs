@@ -22,6 +22,15 @@ pub(crate) struct Field {
   #[darling(default)]
   pub(crate) prefix: Option<String>,
 
+  /// Field is kept in the builder, but no setter is generated.
+  /// Useful for internal state initialized via `#[builder(default = ...)]`.
+  #[darling(default)]
+  pub(crate) skip: bool,
+
+  /// Setter is generated as `pub(crate)` instead of `pub`.
+  #[darling(default)]
+  pub(crate) private: bool,
+
   /// Field must be initialized (panics if not set)
   #[darling(default)]
   pub(crate) must: bool,
@@ -83,16 +92,24 @@ impl quote::ToTokens for BuilderDeriveInput {
         ident.span(),
       );
 
-      let method = if field.into {
+      let setter_vis = if field.private {
+        quote! (pub(crate))
+      } else {
+        quote! (pub)
+      };
+
+      let method = if field.skip {
+        quote! ()
+      } else if field.into {
         quote! {
-          pub fn #setter_ident(mut self, #ident: impl Into<#ty>) -> Self {
+          #setter_vis fn #setter_ident(mut self, #ident: impl Into<#ty>) -> Self {
             self.#ident = std::option::Option::Some(#ident.into());
             self
           }
         }
       } else {
         quote! {
-          pub fn #setter_ident(mut self, #ident: #ty) -> Self {
+          #setter_vis fn #setter_ident(mut self, #ident: #ty) -> Self {
             self.#ident = std::option::Option::Some(#ident);
             self
           }
