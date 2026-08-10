@@ -118,6 +118,20 @@ impl quote::ToTokens for BuilderDeriveInput {
 
       methods.push(method);
 
+      // Option<T> fields additionally get a with_<field>_opt setter that
+      // accepts the Option<T> itself, so a pre-built Option can be passed
+      // straight through without an if-let dance.
+      if is_option && !field.skip {
+        let opt_ident = Ident::new(&format!("{}_opt", setter_ident), ident.span());
+        let opt_param = Ident::new(&format!("{ident}_opt"), ident.span());
+        methods.push(quote! {
+          #setter_vis fn #opt_ident(mut self, #opt_param: std::option::Option<#ty>) -> Self {
+            self.#ident = #opt_param;
+            self
+          }
+        });
+      }
+
       if is_option {
         build.push(quote! (#ident: self.#ident));
       } else if field.must {
