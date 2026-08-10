@@ -1,7 +1,7 @@
 use darling::{ast, util};
 use proc_macro2::{Ident, TokenStream as Ts};
 use quote::quote;
-use syn::{Attribute, PathArguments, Type, TypePath, Visibility};
+use syn::{Attribute, Error, PathArguments, Type, TypePath, Visibility};
 
 #[derive(Debug, darling::FromField)]
 #[darling(attributes(builder), forward_attrs(allow, doc, cfg))]
@@ -95,6 +95,30 @@ impl quote::ToTokens for BuilderDeriveInput {
 
       let ident = ident.as_ref().unwrap();
       let (ty, is_option) = get_option_inner_type(ty);
+
+      if field.must && field.skip {
+        tokens.extend(
+          Error::new_spanned(
+            ident,
+            "`#[builder(must)]` and `#[builder(skip)]` cannot be combined: \
+             skip removes the setter, so the field could never be initialized",
+          )
+          .to_compile_error(),
+        );
+        return;
+      }
+
+      if field.must && field.default.is_some() {
+        tokens.extend(
+          Error::new_spanned(
+            ident,
+            "`#[builder(must)]` and `#[builder(default = ...)]` cannot be combined: \
+             `must` panics when unset, which makes the default unreachable",
+          )
+          .to_compile_error(),
+        );
+        return;
+      }
 
       fields.push(quote! {
         #(#attrs)*
