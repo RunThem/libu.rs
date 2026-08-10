@@ -239,6 +239,7 @@ pub fn clone(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// Expands each arm into a `flume::Selector::new().recv(...).recv(...).wait()` chain,
 /// allowing a thread to block until one of the registered channels becomes ready.
+/// Receivers may be written with or without a leading `&`.
 ///
 /// # Syntax
 ///
@@ -248,6 +249,18 @@ pub fn clone(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   &rx2 => |msg| { /* handle rx2 */ },
 /// ];
 /// ```
+///
+/// Each handler receives the `Result<T, flume::RecvError>` produced by
+/// `flume::Selector::recv` — check it for a disconnected channel:
+///
+/// ```rust,ignore
+/// select! [
+///   &rx1 => |msg| { if let Ok(m) = msg { /* handle m */ } },
+///   &rx2 => |msg| { if let Ok(m) = msg { /* handle m */ } },
+/// ];
+/// ```
+///
+/// At least one arm is required, and arms must be separated by commas.
 ///
 /// # Expansion
 ///
