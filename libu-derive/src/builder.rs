@@ -225,19 +225,43 @@ impl quote::ToTokens for BuilderDeriveInput {
       }
     }
 
-    let mut generics_impl_params = generics.params.clone();
-    generics_impl_params.iter_mut().for_each(|t| {
+    let where_clause = &generics.where_clause;
+    let generics_params = &generics.params;
+    let struct_params = quote! (<#(#generics_params), *>);
+
+    // Impl-head declaration: keep bounds but drop defaults, which are not
+    // allowed on impls (`struct S<T = i32>`).
+    let mut impl_generics = generics.params.clone();
+    impl_generics.iter_mut().for_each(|t| {
       if let syn::GenericParam::Type(t) = t {
-        t.bounds.clear();
         t.eq_token = None;
         t.default = None;
       }
     });
+    let impl_generics = quote! (<#(#impl_generics), *>);
 
-    let where_clause = &generics.where_clause;
-    let generics_params = &generics.params;
-    let generics_params = quote! (<#(#generics_params), *>);
-    let generics_impl_params = quote! (<#(#generics_impl_params), *>);
+    // Type references (builder self type, build()/builder() return types):
+    // bare idents, so const params expand to `N` rather than
+    // `const N: usize`.
+    let type_refs: Vec<_> = generics
+      .params
+      .iter()
+      .map(|t| match t {
+        syn::GenericParam::Type(t) => {
+          let i = &t.ident;
+          quote! (#i)
+        }
+        syn::GenericParam::Lifetime(l) => {
+          let l = &l.lifetime;
+          quote! (#l)
+        }
+        syn::GenericParam::Const(c) => {
+          let i = &c.ident;
+          quote! (#i)
+        }
+      })
+      .collect();
+    let type_refs = quote! (<#(#type_refs), *>);
 
     let default_helper = if has_plain_fields {
       quote! {
@@ -266,28 +290,28 @@ impl quote::ToTokens for BuilderDeriveInput {
       #default_helper
 
       #(#attrs)*
-      #vis struct #builder_ident #generics_params #where_clause {
+      #vis struct #builder_ident #struct_params #where_clause {
         #(#fields),*
       }
 
       // Hand-written instead of #[derive(Default)]: every field is Option<..>,
       // so defaulting to all-None needs no bounds on the type parameters.
-      impl #generics_params #builder_ident #generics_impl_params #where_clause {
+      impl #impl_generics #builder_ident #type_refs #where_clause {
         fn default() -> Self {
           Self { #(#defaults),* }
         }
       }
 
-      impl #generics_params #builder_ident #generics_impl_params #where_clause {
+      impl #impl_generics #builder_ident #type_refs #where_clause {
         #(#methods)*
 
-        pub fn build(self) -> #ident #generics_impl_params {
+        pub fn build(self) -> #ident #type_refs {
           #ident { #(#build),* }
         }
       }
 
-      impl #generics_params #ident #generics_impl_params #where_clause {
-        pub fn builder() -> #builder_ident #generics_impl_params {
+      impl #impl_generics #ident #type_refs #where_clause {
+        pub fn builder() -> #builder_ident #type_refs {
           #builder_ident::default()
         }
       }
