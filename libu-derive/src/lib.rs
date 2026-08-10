@@ -243,24 +243,42 @@ pub fn clone(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # Syntax
 ///
-/// ```rust,ignore
+/// ```rust
+/// use libu_derive::select;
+/// use flume::unbounded;
+///
+/// let (tx, rx) = unbounded();
+/// tx.send(42).unwrap();
+///
 /// select! [
-///   &rx1 => |msg| { /* handle rx1 */ },
-///   &rx2 => |msg| { /* handle rx2 */ },
+///   &rx => |msg| { assert_eq!(msg, Ok(42)); },
 /// ];
 /// ```
 ///
 /// Each handler receives the `Result<T, flume::RecvError>` produced by
 /// `flume::Selector::recv` — check it for a disconnected channel:
 ///
-/// ```rust,ignore
+/// ```rust
+/// use libu_derive::select;
+/// use flume::unbounded;
+///
+/// let (tx, rx) = unbounded();
+/// tx.send(1).unwrap();
+/// drop(tx); // disconnect after the pending message
+///
 /// select! [
-///   &rx1 => |msg| { if let Ok(m) = msg { /* handle m */ } },
-///   &rx2 => |msg| { if let Ok(m) = msg { /* handle m */ } },
+///   &rx => |msg| {
+///     match msg {
+///       Ok(m) => assert_eq!(m, 1),
+///       Err(_) => panic!("disconnected before the message arrived"),
+///     }
+///   },
 /// ];
 /// ```
 ///
 /// At least one arm is required, and arms must be separated by commas.
+/// The flume crate path defaults to `::flume` and can be overridden with a
+/// leading path: `select!(::libu::dependency::flume; &rx => h, ...)`.
 ///
 /// # Expansion
 ///

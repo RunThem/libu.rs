@@ -20,4 +20,5 @@ version = "2.0.104"
 features = ["full", "parsing", "printing", "extra-traits", "proc-macro", "derive", "clone-impls"]
 
 [dev-dependencies]
+flume = { version = "0.12.0", default-features = false, features = ['select'] }
 trybuild = "1.0.120"
