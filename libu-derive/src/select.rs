@@ -2,13 +2,30 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
   Expr, Token,
+  parse::discouraged::Speculative,
   parse::{Parse, ParseStream},
 };
 
-struct SelectInput(Vec<(Expr, Expr)>);
+struct SelectInput {
+  crate_path: Option<syn::Path>,
+  arms: Vec<(Expr, Expr)>,
+}
 
 impl Parse for SelectInput {
   fn parse(input: ParseStream) -> syn::Result<Self> {
+    // Optional crate path prefix: `select!(::my_flume; &rx => h, ...)`.
+    // Detected by forking: a leading path followed by `;` is the crate
+    // path, anything else starts an arm (a bare `rx` is a path too).
+    let mut crate_path = None;
+    let fork = input.fork();
+    if let Ok(path) = fork.parse::<syn::Path>() {
+      if fork.peek(Token![;]) {
+        crate_path = Some(path);
+        input.advance_to(&fork);
+        input.parse::<Token![;]>()?;
+      }
+    }
+
     let mut arms = Vec::new();
 
     while !input.is_empty() {
@@ -28,7 +45,7 @@ impl Parse for SelectInput {
       arms.push((receiver, handler));
     }
 
-    Ok(SelectInput(arms))
+    Ok(SelectInput { crate_path, arms })
   }
 }
 
@@ -42,7 +59,7 @@ fn select2(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     Err(e) => return e.to_compile_error(),
   };
 
-  if selects.0.is_empty() {
+  if selects.arms.is_empty() {
     // An empty Selector panics at runtime (modulo-zero in flume's wait),
     // so reject it at compile time.
     return quote! {
@@ -50,7 +67,12 @@ fn select2(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     };
   }
 
-  let calls = selects.0.iter().map(|arm| {
+  let flume_path = match &selects.crate_path {
+    Some(path) => quote! (#path),
+    None => quote!(::flume),
+  };
+
+  let calls = selects.arms.iter().map(|arm| {
     let receiver = &arm.0;
     let handler = &arm.1;
 
@@ -64,7 +86,7 @@ fn select2(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote! { .recv(#receiver, #handler) }
   });
 
-  quote! { ::flume::Selector::new() #(#calls)* .wait() }
+  quote! { #flume_path::Selector::new() #(#calls)* .wait() }
 }
 
 #[cfg(test)]
@@ -97,6 +119,22 @@ mod tests {
     let out = expand("rx1 => |m| m rx2 => |m| m");
 
     assert!(out.contains("expected `,`"), "{out}");
+  }
+
+  #[test]
+  fn custom_crate_path() {
+    let out = expand("::my_flume; rx1 => |m| m");
+    assert!(out.contains(":: my_flume :: Selector :: new ()"), "{out}");
+
+    let out2 = expand("my::flume; rx1 => |m| m");
+    assert!(out2.contains("my :: flume :: Selector :: new ()"), "{out2}");
+  }
+
+  #[test]
+  fn default_crate_path_is_flume() {
+    let out = expand("rx1 => |m| m");
+
+    assert!(out.contains(":: flume :: Selector :: new ()"), "{out}");
   }
 
   #[test]
