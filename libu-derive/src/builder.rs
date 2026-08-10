@@ -127,10 +127,20 @@ impl quote::ToTokens for BuilderDeriveInput {
 
       defaults.push(quote! (#ident: std::option::Option::None));
 
-      let setter_ident = Ident::new(
-        &format!("{}{ident}", field.prefix.as_deref().unwrap_or("with_")),
-        ident.span(),
-      );
+      let setter_name = format!("{}{ident}", field.prefix.as_deref().unwrap_or("with_"));
+      let setter_ident = match syn::parse_str::<Ident>(&setter_name) {
+        Ok(ident) => ident,
+        Err(_) => {
+          tokens.extend(
+            Error::new_spanned(
+              ident,
+              format!("`{setter_name}` is not a valid setter name (from `#[builder(prefix = ...)]`)"),
+            )
+            .to_compile_error(),
+          );
+          return;
+        }
+      };
 
       let setter_vis = if field.private {
         quote!(pub(crate))
@@ -180,7 +190,9 @@ impl quote::ToTokens for BuilderDeriveInput {
         let msg = format!("Field '{}' must be initialized", ident);
         build.push(quote! (#ident: self.#ident.expect(#msg)));
       } else if let Some(default) = &field.default {
-        build.push(quote! (#ident: self.#ident.unwrap_or(#default)));
+        // unwrap_or_else keeps the expression lazy: it only runs when the
+        // field was not set.
+        build.push(quote! (#ident: self.#ident.unwrap_or_else(|| #default)));
       } else {
         build.push(quote! {
           #ident: self.#ident.unwrap_or_else(|| <#ty as #default_trait>::__builder_default())
