@@ -64,6 +64,7 @@ pub(crate) struct BuilderDeriveInput {
 impl quote::ToTokens for BuilderDeriveInput {
   fn to_tokens(&self, tokens: &mut Ts) {
     let mut fields = vec![];
+    let mut defaults = vec![];
     let mut methods = vec![];
     let mut build = vec![];
 
@@ -78,6 +79,15 @@ impl quote::ToTokens for BuilderDeriveInput {
     let builder_ident = Ident::new(&format!("{ident}Builder"), ident.span());
     let struct_fields = data.as_ref().take_struct().unwrap();
 
+    // A plain field's build code requires `Default` on its type; route that
+    // requirement through a hidden trait so a missing impl produces a helpful
+    // diagnostic (via on_unimplemented) instead of a bare E0277.
+    let has_plain_fields = struct_fields.iter().any(|f| {
+      let (ty, is_option) = get_option_inner_type(&f.ty);
+      !is_option && !f.must && f.default.is_none()
+    });
+    let default_trait = Ident::new(&format!("__{ident}BuilderDefault"), ident.span());
+
     for field in struct_fields {
       let Field {
         ident, ty, attrs, ..
@@ -90,6 +100,8 @@ impl quote::ToTokens for BuilderDeriveInput {
         #(#attrs)*
         #ident: std::option::Option<#ty>
       });
+
+      defaults.push(quote! (#ident: std::option::Option::None));
 
       let setter_ident = Ident::new(
         &format!("{}{ident}", field.prefix.as_deref().unwrap_or("with_")),
@@ -146,7 +158,9 @@ impl quote::ToTokens for BuilderDeriveInput {
       } else if let Some(default) = &field.default {
         build.push(quote! (#ident: self.#ident.unwrap_or(#default)));
       } else {
-        build.push(quote! (#ident: self.#ident.unwrap_or_default()));
+        build.push(quote! {
+          #ident: self.#ident.unwrap_or_else(|| <#ty as #default_trait>::__builder_default())
+        });
       }
     }
 
@@ -164,11 +178,43 @@ impl quote::ToTokens for BuilderDeriveInput {
     let generics_params = quote! (<#(#generics_params), *>);
     let generics_impl_params = quote! (<#(#generics_impl_params), *>);
 
+    let default_helper = if has_plain_fields {
+      quote! {
+        #[doc(hidden)]
+        #[allow(dead_code)]
+        #[diagnostic::on_unimplemented(
+          message = "field type must implement `Default`",
+          note = "add #[builder(must)] or #[builder(default = ...)] to the field",
+          label = "`{Self}` does not implement `Default`"
+        )]
+        trait #default_trait {
+          fn __builder_default() -> Self;
+        }
+
+        impl<T: ::std::default::Default> #default_trait for T {
+          fn __builder_default() -> Self {
+            ::std::default::Default::default()
+          }
+        }
+      }
+    } else {
+      quote!()
+    };
+
     tokens.extend(quote! {
-      #[derive(Default)]
+      #default_helper
+
       #(#attrs)*
       #vis struct #builder_ident #generics_params #where_clause {
         #(#fields),*
+      }
+
+      // Hand-written instead of #[derive(Default)]: every field is Option<..>,
+      // so defaulting to all-None needs no bounds on the type parameters.
+      impl #generics_params #builder_ident #generics_impl_params #where_clause {
+        fn default() -> Self {
+          Self { #(#defaults),* }
+        }
       }
 
       impl #generics_params #builder_ident #generics_impl_params #where_clause {
