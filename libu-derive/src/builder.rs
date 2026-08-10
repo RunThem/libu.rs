@@ -6,11 +6,11 @@ use syn::{Attribute, Error, PathArguments, Type, TypePath, Visibility};
 /// Rust strict and reserved keywords, which proc-macro2 accepts as
 /// identifiers but the generated code would never compile with.
 const RUST_KEYWORDS: &[&str] = &[
-  "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
-  "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move",
-  "mut", "pub", "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true",
-  "type", "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final",
-  "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try", "union",
+  "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern",
+  "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub",
+  "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe",
+  "use", "where", "while", "abstract", "become", "box", "do", "final", "macro", "override", "priv",
+  "typeof", "unsized", "virtual", "yield", "try", "union",
 ];
 
 #[derive(Debug, darling::FromField)]
