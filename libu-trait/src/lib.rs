@@ -7,12 +7,12 @@
 //!
 //! | Type | Method | Description |
 //! |------|------|------|
-//! | `bool` | [`pick`] | Ternary selector |
-//! | `T: Default` | [`bzero`] | Reset to default value |
-//! | `T: Sized` | [`void`] | Suppress must_use warnings |
-//! | `str` | [`to_dur`] | Parse string to Duration |
-//! | `Vec<T>` | [`remove_if`] | Remove elements by condition |
-//! | `T: Debug` | [`pretty`] | Pretty-print with 2-space indent |
+//! | `bool` | [`Pick::pick`] | Ternary selector |
+//! | `T: Default` | [`Bzero::bzero`] | Reset to default value |
+//! | `T: Sized` | [`Void::void`] | Suppress must_use warnings |
+//! | `str` | [`ToDur::to_dur`] | Parse string to Duration |
+//! | `Vec<T>` | [`RemoveIf::remove_if`] | Remove elements by condition |
+//! | `T: Debug` | [`Pretty::pretty`] | Pretty-print with 2-space indent |
 
 use std::fmt::Debug;
 use std::time::Duration;
