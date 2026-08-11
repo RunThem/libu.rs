@@ -158,7 +158,7 @@ pub fn derive_builder(input: TokenStream) -> TokenStream {
 /// # Example
 ///
 /// ```rust
-/// use libu::Sync;
+/// use libu_derive::Sync;
 /// use std::rc::Rc;
 ///
 /// // WARNING: Only use if you know this is safe!
@@ -196,7 +196,7 @@ pub fn derive_sync(input: TokenStream) -> TokenStream {
 /// # Example
 ///
 /// ```rust
-/// use libu::Send;
+/// use libu_derive::Send;
 /// use std::rc::Rc;
 ///
 /// // WARNING: Only use if you know this is safe!
@@ -223,17 +223,20 @@ pub fn derive_send(input: TokenStream) -> TokenStream {
 /// # Example
 ///
 /// ```rust
-/// use libu::clone;
+/// #![feature(proc_macro_hygiene)]
+/// use libu_derive::clone;
+/// use std::thread;
 ///
 /// let data = vec![1, 2, 3];
 /// let name = String::from("test");
 ///
 /// // Clone `data` and `name` before the closure
 /// #[clone(data, name)]
-/// let handle = thread::spawn(|| {
+/// let handle = thread::spawn(move || {
 ///   println!("data: {:?}", data);
 ///   println!("name: {}", name);
 /// });
+/// handle.join().unwrap();
 ///
 /// // Works with expressions too
 /// #[clone(data)]
