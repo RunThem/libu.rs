@@ -12,7 +12,9 @@
 //! | `T: Sized` | [`void`] | Suppress must_use warnings |
 //! | `str` | [`to_dur`] | Parse string to Duration |
 //! | `Vec<T>` | [`remove_if`] | Remove elements by condition |
+//! | `T: Debug` | [`pretty`] | Pretty-print with 2-space indent |
 
+use std::fmt::Debug;
 use std::time::Duration;
 
 use extend::ext;
@@ -24,7 +26,7 @@ use extend::ext;
 /// # Example
 ///
 /// ```rust
-/// use libu::Pick;
+/// use libu_trait::Pick;
 ///
 /// let value = true.pick(1, 2);
 /// assert_eq!(value, 1);
@@ -47,7 +49,7 @@ impl<O> bool {
 /// # Example
 ///
 /// ```rust
-/// use libu::Bzero;
+/// use libu_trait::Bzero;
 ///
 /// let mut value = 42;
 /// value.bzero();
@@ -73,7 +75,7 @@ impl<A: Default> A {
 /// # Example
 ///
 /// ```rust
-/// use libu::Void;
+/// use libu_trait::Void;
 ///
 /// // Some function returns Result, but we don't care about the result
 /// fn some_fn() -> Result<(), ()> { Ok(()) }
@@ -112,7 +114,7 @@ impl<B: Sized> B {
 /// # Example
 ///
 /// ```rust
-/// use libu::ToDur;
+/// use libu_trait::ToDur;
 /// use std::time::Duration;
 ///
 /// let dur = "100ms".to_dur();
@@ -156,7 +158,7 @@ impl str {
 /// # Example
 ///
 /// ```rust
-/// use libu::RemoveIf;
+/// use libu_trait::RemoveIf;
 ///
 /// let mut vec = vec![1, 2, 3, 4, 5, 6];
 /// let removed = vec.remove_if(|x| x % 2 == 0);
@@ -179,5 +181,53 @@ impl<T, F: Fn(&T) -> bool> Vec<T> {
     }
 
     removed
+  }
+}
+
+/// Pretty-print any `Debug` value with 2-space indentation
+///
+/// `{:#?}` pretty output is hardcoded to 4 spaces per level (RFC 0640
+/// deferred making it configurable). `Debug for str` escapes newlines, so
+/// every newline in std/derived debug output comes from the formatter
+/// itself and leading whitespace is always exactly `4 * depth` spaces —
+/// re-indenting the final string to 2 spaces per level is lossless and
+/// applies inside nested std containers (`Vec`, `HashMap`, ...) that a
+/// custom `Debug` derive cannot reach.
+///
+/// # Example
+///
+/// ```rust
+/// use libu_trait::Pretty;
+///
+/// #[derive(Debug)]
+/// struct St {
+///   name: String,
+///   tags: Vec<String>,
+/// }
+///
+/// let s = St {
+///   name: "hello".into(),
+///   tags: vec!["a".into(), "b".into()],
+/// };
+///
+/// // 2-space indentation, nested containers included
+/// assert_eq!(
+///   s.pretty(),
+///   "St {\n  name: \"hello\",\n  tags: [\n    \"a\",\n    \"b\",\n  ],\n}"
+/// );
+/// ```
+#[ext(pub, name = Pretty)]
+impl<T: Debug> T {
+  /// Pretty-print with 2-space indentation.
+  #[inline]
+  fn pretty(&self) -> String {
+    format!("{:#?}", self)
+      .lines()
+      .map(|line| {
+        let lead = line.len() - line.trim_start_matches(' ').len();
+        " ".repeat(lead / 4 * 2) + &line[lead..]
+      })
+      .collect::<Vec<_>>()
+      .join("\n")
   }
 }

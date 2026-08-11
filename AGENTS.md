@@ -21,7 +21,7 @@ Umbrella root crate re-exports all 7 workspace members (`pub use libu_*::*`) and
 | `libu-chan` | `Chan<S,R>` bidirectional point-to-point channel over two flume `unbounded` channels |
 | `libu-log` | global logger via `log`; `init()` hardcodes the `Trace` level; re-exports `log::*` |
 | `libu-macro` | `macro_rules!` collection/control-flow macros (`hmap!`, `brk_if!`, `count!`, …), no deps |
-| `libu-trait` | `#[ext]`-based trait extensions (`Pick`, `Bzero`, `Void`, `ToDur`, `RemoveIf`) |
+| `libu-trait` | `#[ext]`-based trait extensions (`Pick`, `Bzero`, `Void`, `ToDur`, `RemoveIf`, `Pretty`) |
 
 `libu-point` has **dead modules** `arc.rs`, `rc.rs`, `sptr.rs` — they are not declared in `lib.rs` (only `r#box`, `mrc`, `urc` are). `sptr.rs` is a hand-written unsafe refcounted pointer (WIP).
 
