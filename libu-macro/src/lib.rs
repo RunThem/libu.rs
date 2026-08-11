@@ -45,12 +45,12 @@
 ///
 /// ```rust
 /// fn process(data: Option<i32>) -> i32 {
-///   libu::chk_if!(data.is_none(), -1);
+///   libu_macro::chk_if!(data.is_none(), -1);
 ///   data.unwrap()
 /// }
 ///
 /// fn cleanup(s: String) {
-///   libu::chk_if!(s.is_empty(), drop(s));
+///   libu_macro::chk_if!(s.is_empty(), drop(s));
 ///   // process non-empty string...
 /// }
 /// ```
@@ -98,13 +98,13 @@ macro_rules! chk_if {
 /// let mut count = 0;
 /// loop {
 ///   count += 1;
-///   libu::brk_if!(count > 10);
+///   libu_macro::brk_if!(count > 10);
 /// }
 /// assert_eq!(count, 11);
 ///
 /// 'outer: loop {
 ///   loop {
-///     libu::brk_if!(true, 'outer); // Break from outer loop
+///     libu_macro::brk_if!(true, 'outer); // Break from outer loop
 ///   }
 /// }
 /// ```
@@ -151,7 +151,7 @@ macro_rules! brk_if {
 /// ```rust
 /// let mut sum = 0;
 /// for i in 1..=10 {
-///   libu::cnt_if!(i % 2 == 0); // Skip even numbers
+///   libu_macro::cnt_if!(i % 2 == 0); // Skip even numbers
 ///   sum += i;
 /// }
 /// assert_eq!(sum, 25); // 1 + 3 + 5 + 7 + 9
@@ -196,8 +196,8 @@ macro_rules! cnt_if {
 /// ```rust
 /// use std::hash::DefaultHasher;
 ///
-/// let h1 = libu::hash!("hello");
-/// let h2 = libu::hash!("hello", DefaultHasher::new());
+/// let h1 = libu_macro::hash!("hello");
+/// let h2 = libu_macro::hash!("hello", DefaultHasher::new());
 ///
 /// // Hash values are consistent
 /// assert_eq!(h1, h2);
@@ -243,7 +243,7 @@ macro_rules! count {
 /// # Example
 ///
 /// ```rust
-/// let map = libu::hmap! {
+/// let map = libu_macro::hmap! {
 ///   "a" => 1,
 ///   "b" => 2,
 /// };
@@ -278,7 +278,7 @@ macro_rules! hmap {
 /// # Example
 ///
 /// ```rust
-/// let set = libu::hset!["a", "b", "c"];
+/// let set = libu_macro::hset!["a", "b", "c"];
 ///
 /// assert!(set.contains("a"));
 /// assert!(!set.contains("d"));
@@ -310,14 +310,14 @@ macro_rules! hset {
 /// # Example
 ///
 /// ```rust
-/// let map = libu::tmap! {
+/// let map = libu_macro::tmap! {
 ///   "b" => 2,
 ///   "a" => 1,
 /// };
 ///
 /// // Keys are sorted
 /// let keys: Vec<_> = map.keys().collect();
-/// assert_eq!(keys, vec!["a", "b"]);
+/// assert_eq!(keys, vec![&"a", &"b"]);
 /// ```
 #[macro_export]
 macro_rules! tmap {
@@ -345,7 +345,7 @@ macro_rules! tmap {
 /// # Example
 ///
 /// ```rust
-/// let set = libu::tset![3, 1, 2];
+/// let set = libu_macro::tset![3, 1, 2];
 ///
 /// // Elements are sorted
 /// let elems: Vec<_> = set.iter().collect();
@@ -377,10 +377,10 @@ macro_rules! tset {
 /// # Example
 ///
 /// ```rust
-/// let deque = libu::deque![1, 2, 3];
+/// let deque = libu_macro::deque![1, 2, 3];
 /// assert_eq!(deque.len(), 3);
 ///
-/// let deque = libu::deque![0; 5];
+/// let deque = libu_macro::deque![0; 5];
 /// assert_eq!(deque, vec![0, 0, 0, 0, 0]);
 /// ```
 #[macro_export]
@@ -415,7 +415,7 @@ macro_rules! deque {
 /// # Example
 ///
 /// ```rust
-/// let mut heap = libu::heap![1, 3, 2];
+/// let mut heap = libu_macro::heap![1, 3, 2];
 ///
 /// // Elements are popped in descending order (max-heap)
 /// assert_eq!(heap.pop(), Some(3));
