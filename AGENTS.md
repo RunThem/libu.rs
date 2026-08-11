@@ -5,7 +5,7 @@ Rust utilities workspace. **Requires the nightly toolchain** — the root crate 
 ## Build and Test
 
 - Build / check: `cargo build`, `cargo check`
-- Test: `cargo test --workspace` — 3 of the `libu-derive` doctests still fail (`E0432: unresolved import 'libu'`); the `Builder` doctest was fixed by importing `libu_derive` directly. Do **not** "fix" the rest by adding a `libu` dev-dependency to `libu-derive` (that would create a dependency cycle); the intended fix is `ignore`/`no_run` on the doctests.
+- Test: `cargo test --workspace` — all unit tests and doctests pass. Doctests in member crates import the member crate directly (`use libu_derive::Builder;`, `use libu_trait::Pretty;`, `libu_macro::hash!`) — never `libu::`, since a member crate cannot dev-depend on the umbrella `libu` (that would create a dependency cycle). The `#[clone]` doctest additionally needs `#![feature(proc_macro_hygiene)]` (nightly only).
 - Format: `cargo fmt` (2-space indent, see `.rustfmt.toml`)
 - **Do not run `xmake`** — the `test` task in `tasks.json` is stale; there is no `xmake.lua` in this repo.
 
