@@ -300,7 +300,7 @@ impl quote::ToTokens for BuilderDeriveInput {
         build.push(quote! (#ident: self.#ident.unwrap_or_else(|| #default)));
       } else {
         build.push(quote! {
-          #ident: self.#ident.unwrap_or_else(|| <#ty as #default_trait>::__builder_default())
+          #ident: self.#ident.unwrap_or_else(|| <#ty as super::#default_trait>::__builder_default())
         });
       }
     }
@@ -371,29 +371,46 @@ impl quote::ToTokens for BuilderDeriveInput {
       quote!()
     };
 
+    let builder_mod = Ident::new(&format!("__{ident}Builder_mod"), ident.span());
+
     tokens.extend(quote! {
       #default_helper
 
-      #(#attrs)*
-      #vis struct #builder_ident #struct_params #where_clause {
-        #(#fields),*
-      }
+      // The builder struct lives in a private module so its fields are not
+      // reachable anywhere in the crate — only the setters can touch them.
+      // The type is re-exported, but field visibility is checked at the
+      // declaration site, so the re-export does not widen it.
+      #[allow(non_snake_case)]
+      mod #builder_mod {
+        // Field types and #[builder(default = ...)] expressions may use
+        // unqualified names from the surrounding module (e.g. `fake::Option`
+        // or a local static). A glob import makes them resolvable here; it
+        // never shadows the locally defined #builder_ident.
+        use super::*;
 
-      // Hand-written instead of #[derive(Default)]: every field is Option<..>,
-      // so defaulting to all-None needs no bounds on the type parameters.
-      impl #impl_generics #builder_ident #type_refs #where_clause {
-        fn default() -> Self {
-          Self { #(#defaults),* }
+        #(#attrs)*
+        pub struct #builder_ident #struct_params #where_clause {
+          #(#fields),*
+        }
+
+        // Hand-written instead of #[derive(Default)]: every field is Option<..>,
+        // so defaulting to all-None needs no bounds on the type parameters.
+        impl #impl_generics #builder_ident #type_refs #where_clause {
+          pub fn default() -> Self {
+            Self { #(#defaults),* }
+          }
+        }
+
+        impl #impl_generics #builder_ident #type_refs #where_clause {
+          #(#methods)*
+
+          pub fn build(self) -> super::#ident #type_refs {
+            super::#ident { #(#build),* }
+          }
         }
       }
 
-      impl #impl_generics #builder_ident #type_refs #where_clause {
-        #(#methods)*
-
-        pub fn build(self) -> #ident #type_refs {
-          #ident { #(#build),* }
-        }
-      }
+      #vis use #builder_mod::#builder_ident;
 
       impl #impl_generics #ident #type_refs #where_clause {
         pub fn builder() -> #builder_ident #type_refs {
@@ -445,6 +462,8 @@ fn is_std_named(ty: &Type, name: &str, module: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+  use crate::Builder;
+
   use super::*;
   use darling::FromDeriveInput;
   use quote::ToTokens;
@@ -542,6 +561,22 @@ mod tests {
   // -------------------------------------------------------------------------
   // Field options: skip, private, into, must, default
   // -------------------------------------------------------------------------
+
+  #[test]
+  fn builder_struct_is_encapsulated() {
+    let input: syn::DeriveInput = parse_quote! {
+      struct St {
+        name: String,
+      }
+    };
+    let out = expand(input);
+
+    // The builder lives in a private module (fields unreachable crate-wide)
+    // and is re-exported; only the setters can touch the fields.
+    assert!(out.contains("mod __StBuilder_mod"), "{out}");
+    assert!(out.contains("use super :: *"), "{out}");
+    assert!(out.contains("use __StBuilder_mod :: StBuilder"), "{out}");
+  }
 
   #[test]
   fn parses_field_attributes() {

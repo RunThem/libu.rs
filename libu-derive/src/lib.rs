@@ -110,12 +110,21 @@ use quote::ToTokens;
 ///   mode: Mode,
 /// }
 ///
-/// let config = Config::builder()
-///   .with_name("app")
-///   .with_path("/tmp/config")
-///   .with_timeout(100)
-///   .build();
+/// fn main() {
+///   let config = Config::builder()
+///     .with_name("app")
+///     .with_path("/tmp/config")
+///     .with_timeout(100)
+///     .build();
+/// }
 /// ```
+///
+/// # Note
+///
+/// The struct must be declared at module level — the generated builder is
+/// encapsulated in a private module so its fields are unreachable from
+/// anywhere in the crate, and a module cannot reference a local struct
+/// declared inside a function.
 #[proc_macro_derive(Builder, attributes(builder))]
 pub fn derive_builder(input: TokenStream) -> TokenStream {
   let input = syn::parse_macro_input!(input as syn::DeriveInput);

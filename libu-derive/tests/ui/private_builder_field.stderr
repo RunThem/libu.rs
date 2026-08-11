@@ -1,0 +1,5 @@
+error[E0616]: field `name` of struct `StBuilder` is private
+  --> tests/ui/private_builder_field.rs:10:17
+   |
+10 |   St::builder().name = None;
+   |                 ^^^^ private field
