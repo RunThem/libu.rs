@@ -4,7 +4,6 @@
 
 pub use libu_chan::*;
 pub use libu_derive::*;
-pub use libu_log::*;
 pub use libu_macro::*;
 pub use libu_point::*;
 pub use libu_timer::*;

@@ -11,7 +11,7 @@ Rust utilities workspace. **Requires the nightly toolchain** — the root crate 
 
 ## Architecture
 
-Umbrella root crate re-exports all 7 workspace members (`pub use libu_*::*`) and exposes `pub mod dependency { pub mod parking_lot; pub mod flume; }`.
+Umbrella root crate re-exports all 6 workspace members (`pub use libu_*::*`) and exposes `pub mod dependency { pub mod parking_lot; pub mod flume; }`.
 
 | Crate | Role |
 |-------|------|
@@ -19,7 +19,6 @@ Umbrella root crate re-exports all 7 workspace members (`pub use libu_*::*`) and
 | `libu-point` | pointer helpers: `iBox`, `Mrc<T> = Arc<parking_lot::Mutex<T>>`, `Urc<T> = Rc<RefCell<T>>` with `iMrc`/`iUrc`, `at()`, `with()`/`with_mut()` |
 | `libu-timer` | 4096-bucket / 100ms-tick timing wheel; free fns `delay`/`ticker`, types `Timer`/`TimerHandle`. Depends on `libu-point` + `#[clone]` |
 | `libu-chan` | `Chan<S,R>` bidirectional point-to-point channel over two flume `unbounded` channels |
-| `libu-log` | global logger via `log`; `init()` hardcodes the `Trace` level; re-exports `log::*` |
 | `libu-macro` | `macro_rules!` collection/control-flow macros (`hmap!`, `brk_if!`, `count!`, …), no deps |
 | `libu-trait` | `#[ext]`-based trait extensions (`Pick`, `Bzero`, `Void`, `ToDur`, `RemoveIf`, `Pretty`) |
 
@@ -39,4 +38,3 @@ Umbrella root crate re-exports all 7 workspace members (`pub use libu_*::*`) and
 - `#[clone(a, b)]` on an item requires `#![feature(proc_macro_hygiene)]` in the *using* crate (nightly only)
 - The `Send`/`Sync` derives emit `unsafe impl` **intentionally** — keep their safety docs; do not "harden" them into safe impls
 - `libu-timer` callbacks run inside `catch_unwind(AssertUnwindSafe)` — a panicking callback is isolated/removed, so don't rely on unwinding across the callback boundary
-- `libu-log::init()` is fixed at `Trace`; there is no runtime level configuration

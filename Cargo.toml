@@ -13,7 +13,6 @@ members = [
     "libu-point",
     "libu-timer",
     "libu-chan",
-    "libu-log",
     "libu-macro",
     "libu-trait"
 ]
@@ -38,9 +37,6 @@ path = "libu-derive"
 
 [dependencies.libu-timer]
 path = "libu-timer"
-
-[dependencies.libu-log]
-path = "libu-log"
 
 [dependencies.libu-trait]
 path = "libu-trait"
