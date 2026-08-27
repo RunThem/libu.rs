@@ -2,12 +2,14 @@
 #![allow(unused)]
 #![feature(proc_macro_hygiene)]
 
-pub use libu_chan::*;
-pub use libu_derive::*;
-pub use libu_macro::*;
-pub use libu_point::*;
-pub use libu_timer::*;
-pub use libu_trait::*;
+pub mod prelude {
+  pub use libu_chan::*;
+  pub use libu_derive::*;
+  pub use libu_macro::*;
+  pub use libu_point::*;
+  pub use libu_timer::*;
+  pub use libu_trait::*;
+}
 
 pub mod dependency {
   pub mod parking_lot {
@@ -20,7 +22,7 @@ pub mod dependency {
 }
 
 mod test {
-  use super::*;
+  use super::prelude::*;
 
   #[test]
   fn tset() {

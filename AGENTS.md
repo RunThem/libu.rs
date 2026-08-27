@@ -15,7 +15,7 @@ Umbrella root crate re-exports all 6 workspace members (`pub use libu_*::*`) and
 | Crate | Role |
 |-------|------|
 | `libu-derive` | proc-macros: `Builder` derive (`with_`-prefixed setters, `#[builder(prefix)]`/`skip`/`private`/`into`/`must`/`default = expr`; `Option` fields get dual setters, `String` fields default to `impl Into<String>`, const/default generics supported, contradictory attr combos (`must`+`skip`, `must`+`default`, `must`/`default` on `Option`) rejected at compile time, missing `Default` gets a custom `on_unimplemented` diagnostic, builder struct is encapsulated in a private module so its fields are unreachable crate-wide), **unsafe** `Send`/`Sync` derives, `#[clone]` attribute, `select!` macro |
-| `libu-point` | pointer helpers: `iBox`, `Mrc<T> = Arc<parking_lot::Mutex<T>>`, `Urc<T> = Rc<RefCell<T>>`; all methods live in the single merged traits `MrcExt`/`UrcExt` (`at`, `with`/`with_mut`, `set`/`swap`/`take`, `try_with`/`try_with_mut`, `val_eq`/`ptr_eq`) plus the `iXxx` constructors; call sites use `use libu_point::prelude::*;` |
+| `libu-point` | pointer helpers: `iBox`, `Mrc<T> = Arc<parking_lot::Mutex<T>>`, `Urc<T> = Rc<RefCell<T>>`; all methods live in the single merged traits `MrcExt`/`UrcExt` (`at`, `with`/`with_mut`, `set`/`swap`/`take`, `try_with`/`try_with_mut`, `val_eq`/`ptr_eq`) plus the `iXxx` constructors; call sites use `use libu::prelude::*;` |
 | `libu-timer` | 4096-bucket / 100ms-tick timing wheel; free fns `delay`/`ticker`, types `Timer`/`TimerHandle`. Depends on `libu-point` + `#[clone]` |
 | `libu-chan` | `Chan<S,R>` bidirectional point-to-point channel over two flume `unbounded` channels |
 | `libu-macro` | `macro_rules!` collection/control-flow macros (`hmap!`, `brk_if!`, `count!`, …), no deps |

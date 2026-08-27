@@ -1,6 +1,6 @@
 //! `Urc<T>` — single-threaded interior mutability over `Rc<RefCell<T>>`.
 //!
-//! Call sites normally `use libu_point::prelude::*;` instead of naming
+//! Call sites normally `use libu::prelude::*;` instead of naming
 //! individual traits.
 //!
 //! | Trait | Method | Requires | Description |

@@ -1,6 +1,6 @@
 //! `Mrc<T>` — thread-shared interior mutability over `Arc<parking_lot::Mutex<T>>`.
 //!
-//! Call sites normally `use libu_point::prelude::*;` instead of naming
+//! Call sites normally `use libu::prelude::*;` instead of naming
 //! individual traits.
 //!
 //! | Trait | Method | Requires | Description |
