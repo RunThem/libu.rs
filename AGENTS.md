@@ -1,13 +1,12 @@
 # libu.rs — Project Guidelines
 
-Rust utilities workspace. **Requires the nightly toolchain** — the root crate and `libu-timer` use `#![feature(proc_macro_hygiene)]`, so stable will not compile.
+Rust utilities workspace. **Requires the nightly toolchain** — the root crate, `libu-derive` and `libu-timer` use `#![feature(proc_macro_hygiene)]`, so stable will not compile.
 
 ## Build and Test
 
 - Build / check: `cargo build`, `cargo check`
 - Test: `cargo test --workspace` — all unit tests and doctests pass. Doctests in member crates import the member crate directly (`use libu_derive::Builder;`, `use libu_trait::Pretty;`, `libu_macro::hash!`) — never `libu::`, since a member crate cannot dev-depend on the umbrella `libu` (that would create a dependency cycle). The `#[clone]` doctest additionally needs `#![feature(proc_macro_hygiene)]` (nightly only).
 - Format: `cargo fmt` (2-space indent, see `.rustfmt.toml`)
-- **Do not run `xmake`** — the `test` task in `tasks.json` is stale; there is no `xmake.lua` in this repo.
 
 ## Architecture
 
@@ -22,12 +21,10 @@ Umbrella root crate re-exports all 6 workspace members (`pub use libu_*::*`) and
 | `libu-macro` | `macro_rules!` collection/control-flow macros (`hmap!`, `brk_if!`, `count!`, …), no deps |
 | `libu-trait` | `#[ext]`-based trait extensions (`Pick`, `Bzero`, `Void`, `ToDur`, `RemoveIf`, `Pretty`) |
 
-`libu-point` has **dead modules** `arc.rs`, `rc.rs`, `sptr.rs` — they are not declared in `lib.rs` (only `r#box`, `mrc`, `urc` are). `sptr.rs` is a hand-written unsafe refcounted pointer (WIP).
-
 ## Conventions
 
 - Edition 2024, 2-space indent; most crates start with `#![allow(unused)]` + `#![allow(non_snake_case)]` (exceptions: `libu-macro`, `libu-trait`)
-- Extension methods use an `i` prefix meaning "into" (`iBox`, `iMrc`, `iUrc`); type aliases are `Mrc`/`Urc`/`Sptr`; `box.rs` uses the raw identifier `mod r#box`
+- Extension methods use an `i` prefix meaning "into" (`iBox`, `iMrc`, `iUrc`); type aliases are `Mrc`/`Urc`; `box.rs` uses the raw identifier `mod r#box`
 - Dependencies pinned to exact versions (no `^`); always use `parking_lot` locks (never std `Mutex`); `flume` is always `default-features = false, features = ["select"]`
 - Heavy `///` doc comments with Markdown tables and `rust` examples; `//!` module docs with macro reference tables
 - Derive/attribute/function macros are re-exported through the root crate (`libu::Builder`, `libu::clone`, `libu::select!`)
