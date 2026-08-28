@@ -1,0 +1,5 @@
+error: duplicate identifier `a` in `#[clone(...)]`
+  --> tests/ui/clone_duplicate.rs:10:14
+   |
+10 |   #[clone(a, a)]
+   |              ^

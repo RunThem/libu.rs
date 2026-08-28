@@ -242,6 +242,14 @@ pub fn derive_send(input: TokenStream) -> TokenStream {
 /// #[clone(data)]
 /// let result = { data.len() };
 /// ```
+///
+/// # Errors
+///
+/// Compile errors, instead of silently producing wrong code or panicking:
+/// a `let` binding without an initializer, a non-`let` statement, or an item
+/// (a `fn`, a `struct`, …); and in the attribute an empty list, a duplicate
+/// identifier, or any token that is not an identifier or a comma (a path such
+/// as `a.b` is rejected rather than split into `a` and `b`).
 #[proc_macro_attribute]
 pub fn clone(attr: TokenStream, item: TokenStream) -> TokenStream {
   clone::clone(attr, item)

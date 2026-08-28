@@ -1,0 +1,5 @@
+error: expected an identifier, e.g. `#[clone(a, b)]`
+  --> tests/ui/clone_non_ident.rs:11:12
+   |
+11 |   #[clone(a.b)]
+   |            ^

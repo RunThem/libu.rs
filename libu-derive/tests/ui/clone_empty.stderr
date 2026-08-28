@@ -1,0 +1,7 @@
+error: `#[clone(...)]` expects at least one identifier, e.g. `#[clone(a, b)]`
+  --> tests/ui/clone_empty.rs:10:3
+   |
+10 |   #[clone()]
+   |   ^^^^^^^^^^
+   |
+   = note: this error originates in the attribute macro `clone` (in Nightly builds, run with -Z macro-backtrace for more info)

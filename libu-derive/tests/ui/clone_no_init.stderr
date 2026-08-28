@@ -1,0 +1,5 @@
+error: `#[clone]` requires the `let` binding to have an initializer, e.g. `#[clone(x)] let y = expr;`
+  --> tests/ui/clone_no_init.rs:11:3
+   |
+11 |   let y;
+   |   ^^^^^^

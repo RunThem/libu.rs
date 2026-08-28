@@ -1,0 +1,5 @@
+error: `#[clone]` can only be applied to an expression or a `let` statement with an initializer
+ --> tests/ui/clone_item.rs:9:1
+  |
+9 | fn foo() {}
+  | ^^^^^^^^^^^
