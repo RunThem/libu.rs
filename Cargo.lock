@@ -123,7 +123,6 @@ dependencies = [
  "libu-derive",
  "libu-macro",
  "libu-point",
- "libu-timer",
  "libu-trait",
  "parking_lot",
 ]
@@ -157,14 +156,6 @@ version = "0.1.0"
 dependencies = [
  "extend",
  "parking_lot",
-]
-
-[[package]]
-name = "libu-timer"
-version = "0.1.0"
-dependencies = [
- "libu-derive",
- "libu-point",
 ]
 
 [[package]]

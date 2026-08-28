@@ -11,7 +11,6 @@ repository = "https://github.com/RunThem/libu.rs"
 members = [
     "libu-derive",
     "libu-point",
-    "libu-timer",
     "libu-chan",
     "libu-macro",
     "libu-trait"
@@ -34,9 +33,6 @@ path = "libu-point"
 
 [dependencies.libu-derive]
 path = "libu-derive"
-
-[dependencies.libu-timer]
-path = "libu-timer"
 
 [dependencies.libu-trait]
 path = "libu-trait"
