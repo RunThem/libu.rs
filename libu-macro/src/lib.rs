@@ -32,14 +32,18 @@
 /// Conditional return
 ///
 /// Returns early from a function if the condition is true.
-/// Optionally executes a statement before returning.
+/// Optionally executes a block before returning.
 ///
 /// # Syntax
 ///
 /// - `chk_if!(cond)` - Return if `cond` is true
 /// - `chk_if!(cond, val)` - Return `val` if `cond` is true
-/// - `chk_if!(cond, stmt)` - Execute `stmt` then return if `cond` is true
-/// - `chk_if!(cond, val, stmt)` - Execute `stmt` then return `val` if `cond` is true
+/// - `chk_if!(cond, { stmt })` - Execute `stmt` then return if `cond` is true
+/// - `chk_if!(cond, val, { stmt })` - Execute `stmt` then return `val` if `cond` is true
+///
+/// The statement-taking forms require a block, because a bare expression is
+/// always taken as the value form: `chk_if!(cond, e)` returns `e`, while
+/// `chk_if!(cond, { … })` runs the block and then returns.
 ///
 /// # Example
 ///
@@ -49,13 +53,30 @@
 ///   data.unwrap()
 /// }
 ///
-/// fn cleanup(s: String) {
-///   libu_macro::chk_if!(s.is_empty(), drop(s));
-///   // process non-empty string...
+/// assert_eq!(process(None), -1);
+/// assert_eq!(process(Some(7)), 7);
+///
+/// // `{ … }` runs the block, then returns.
+/// use std::cell::Cell;
+///
+/// fn cleanup(s: String, ran: &Cell<usize>) {
+///   libu_macro::chk_if!(s.is_empty(), { ran.set(ran.get() + 1); });
 /// }
+///
+/// let ran = Cell::new(0);
+/// cleanup(String::from("x"), &ran);
+/// assert_eq!(ran.get(), 0); // non-empty: no early return
+/// cleanup(String::new(), &ran);
+/// assert_eq!(ran.get(), 1); // empty: the block ran before returning
 /// ```
 #[macro_export]
 macro_rules! chk_if {
+  ($cond:expr, $stmt:block) => {
+    if $cond {
+      $stmt
+      return;
+    }
+  };
   ($cond:expr) => {
     if $cond {
       return;
@@ -66,15 +87,9 @@ macro_rules! chk_if {
       return $val;
     }
   };
-  ($cond:expr, $stmt:stmt) => {
+  ($cond:expr, $val:expr, $stmt:block) => {
     if $cond {
-      $stmt;
-      return;
-    }
-  };
-  ($cond:expr, $val:expr, $stmt:stmt) => {
-    if $cond {
-      $stmt;
+      $stmt
       return $val;
     }
   };
@@ -101,6 +116,13 @@ macro_rules! chk_if {
 ///   libu_macro::brk_if!(count > 10);
 /// }
 /// assert_eq!(count, 11);
+///
+/// // The statement form runs a block, then breaks.
+/// let mut log = vec![];
+/// for i in 1.. {
+///   libu_macro::brk_if!(i > 3, { log.push(i); });
+/// }
+/// assert_eq!(log, vec![4]);
 ///
 /// 'outer: loop {
 ///   loop {
@@ -155,6 +177,13 @@ macro_rules! brk_if {
 ///   sum += i;
 /// }
 /// assert_eq!(sum, 25); // 1 + 3 + 5 + 7 + 9
+///
+/// // The statement form runs a block, then continues.
+/// let mut skipped = vec![];
+/// for i in 1..=10 {
+///   libu_macro::cnt_if!(i % 2 == 0, { skipped.push(i); });
+/// }
+/// assert_eq!(skipped, vec![2, 4, 6, 8, 10]);
 /// ```
 #[macro_export]
 macro_rules! cnt_if {
