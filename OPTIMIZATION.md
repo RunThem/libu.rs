@@ -41,13 +41,13 @@
    - `forward_attrs(cfg)` 把 `#[cfg]` 复制进 builder 字段,而 `build()` 无条件引用它们 → cfg 掉字段即 codegen 悬空
    - `to_tokens` 约 350 行单函数,可拆分
 
-## 3. 模块引入与卫生
+## 3. 模块引入与卫生 —— **已完成**(`c42064a`)
 
-- `libu-point/src/mrc.rs` 的 `pub use parking_lot::{Mutex, MutexGuard}; pub use std::sync::Arc;`:与 `urc.rs`(未 pub use `Rc`/`RefCell`)不对称,且经伞形 glob 污染用户作用域(`libu::Arc`/`libu::Mutex`)。建议删除;需要 `Mutex` 的人走 `libu::dependency::parking_lot`。
-- 三个 crate 级 `#![allow(unused)]`(根、`libu-point`、`libu-derive`、`libu-timer`):代码已是 curated 状态,全局豁免关闭了 dead-code 检测。删除后按报警点加窄的 `#[allow(dead_code)]`。
-- `libu-derive` 的 `send.rs`/`sync.rs`:约 200 行 × 2 镜像复制,逻辑仅差 trait 名;抽共享生成函数可减半,测试同理。
-- syn features 冗余:`parsing`/`printing`/`derive`/`clone-impls`/`proc-macro` 是默认特性,只需 `["full", "extra-traits"]`;激进选项为移除 darling(仅 Builder 使用)。
-- 根 crate `mod test` 中 `fn tset` 为 typo,且仅测三个构造器;建议改名并扩展为 prelude 冒烟测试。
+- ~~`libu-point/src/mrc.rs` 的 `pub use parking_lot::{Mutex, MutexGuard}; pub use std::sync::Arc;`~~ → 改私有 `use`(`MutexGuard` 未裸用,直接删);伞形 glob 不再泄漏 `libu::Arc`/`libu::Mutex`
+- ~~crate 级 `#![allow(unused)]`~~(实测为根、`libu-point`、`libu-chan`、`libu-derive` 共 4 处,原条目漏计 chan、timer 已移除)→ 全部删除(保留 `non_snake_case`),删后报警点逐一修复;连带删除根 crate **未使用**的 `#![feature(proc_macro_hygiene)]`(编译器实证,印证 §0 的"gate 属历史遗留")
+- ~~`send.rs`/`sync.rs` 镜像复制~~(各 200 行,仅 trait 名不同)→ 抽共享 `marker.rs`:单一生成函数 + 10 个参数化形状测试覆盖 Send/Sync,`send.rs`/`sync.rs` 各剩 4 行转发
+- ~~syn features 冗余~~ → 修剪为 `["full", "extra-traits"]`;**"移除 darling"(仅 Builder 使用)为激进项,未执行**
+- ~~根 crate `mod test` 中 `fn tset` typo 且仅测三个构造器~~ → 改名 `prelude_reexports`,`mod test` 加 `#[cfg(test)]`,扩展为覆盖全部 5 个成员 crate 的 prelude 冒烟测试
 
 ## 4. API 增补(按价值排序)
 
@@ -61,7 +61,7 @@
 
 - **P0(真 bug)**:`gen` 关键字、~~clone.rs 加固 + 测试~~ ✔(`c69e135`)、~~条件宏 stmt 臂语义~~ ✔(`d49eda2`)、Builder 诊断累积
 - **P1(基建)**:`rust-toolchain.toml` + CI + README + workspace.dependencies + resolver 3 + nightly 表述精确化
-- **P2(卫生)**:Arc/Mutex pub-use 摘除、`allow(unused)` 收窄、send/sync 去重、syn features、根测试改写
+- **P2(卫生)**:~~Arc/Mutex pub-use 摘除、`allow(unused)` 收窄、send/sync 去重、syn features、根测试改写~~ ✔(`c42064a`)
 - **P3(API)**:`Chan: Clone`、select!/Builder 扩展
 
 ## 附:当前已完成项(历史记录)
@@ -74,3 +74,4 @@
 - `e73a75f` libu-chan:send/recv 对称族、`disassemble`、移除 `tynm` 依赖、补文档与首个测试套件
 - `c69e135` libu-derive:`#[clone]` 属性宏加固(四项缺陷全部转 `compile_error!`)+ 首个测试套件(5 快照 / 1 pass / 7 单测)
 - `d49eda2` libu-macro:`chk_if!` 语句臂改 `$stmt:block`(先执行再返回可及;`brk_if!`/`cnt_if!` 探针实测不受影响)+ 三个宏补可运行 doctest
+- `c42064a` 全工程卫生:私化 mrc 的 re-export;删 4 处 crate 级 `#![allow(unused)]`(+ 根 crate 未用的 `proc_macro_hygiene` gate);send/sync 镜像合并为 `marker.rs`;syn features 修剪为 `full+extra-traits`;根 `tset` 改为 prelude 冒烟测试
