@@ -1,4 +1,3 @@
-#![allow(unused)]
 #![allow(non_snake_case)]
 
 mod chan;

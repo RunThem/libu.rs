@@ -14,9 +14,9 @@
 //! | [`MrcExt`] | [`ptr_eq`](MrcExt::ptr_eq) | – | Same allocation? |
 //! | [`MrcExt`] | [`val_eq`](MrcExt::val_eq) | `T: PartialEq` | Compare inner values |
 
-pub use parking_lot::{Mutex, MutexGuard};
+use parking_lot::Mutex;
 
-pub use std::sync::Arc;
+use std::sync::Arc;
 
 pub type Mrc<T> = Arc<Mutex<T>>;
 

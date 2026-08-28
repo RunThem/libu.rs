@@ -33,11 +33,11 @@
 //! **Use these macros only when you are certain your type is safe to share
 //! across threads.**
 
-#![allow(unused)]
 #![allow(non_snake_case)]
 
 mod builder;
 mod clone;
+mod marker;
 mod select;
 mod send;
 mod sync;

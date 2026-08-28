@@ -93,7 +93,7 @@ impl quote::ToTokens for BuilderDeriveInput {
     // requirement through a hidden trait so a missing impl produces a helpful
     // diagnostic (via on_unimplemented) instead of a bare E0277.
     let has_plain_fields = struct_fields.iter().any(|f| {
-      let (ty, is_option) = get_option_inner_type(&f.ty);
+      let (_, is_option) = get_option_inner_type(&f.ty);
       !is_option && !f.must && f.default.is_none()
     });
     let default_trait = Ident::new(&format!("__{ident}BuilderDefault"), ident.span());
@@ -462,8 +462,6 @@ fn is_std_named(ty: &Type, name: &str, module: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use crate::Builder;
-
   use super::*;
   use darling::FromDeriveInput;
   use quote::ToTokens;
