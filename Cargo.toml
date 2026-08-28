@@ -15,15 +15,22 @@ members = [
     "libu-macro",
     "libu-trait"
 ]
-resolver = "2"
+
+[workspace.dependencies]
+parking_lot = "0.12.5"
+flume = { version = "0.12.0", default-features = false, features = ['select'] }
+extend = "1.2.0"
+darling = "0.23.0"
+proc-macro2 = "1.0.95"
+quote = "1.0.40"
+syn = { version = "2.0.104", features = ["full", "parsing", "printing", "extra-traits", "proc-macro", "derive", "clone-impls"] }
+trybuild = "1.0.120"
 
 [dependencies.parking_lot]
-version = "0.12.5"
+workspace = true
 
 [dependencies.flume]
-version = "0.12.0"
-default-features = false
-features = ['select']
+workspace = true
 
 [dependencies.libu-chan]
 path = "libu-chan"

@@ -24,7 +24,7 @@ Umbrella root crate re-exports all 5 workspace members (`pub use libu_*::*`) and
 
 - Edition 2024, 2-space indent; most crates start with `#![allow(unused)]` + `#![allow(non_snake_case)]` (exceptions: `libu-macro`, `libu-trait`)
 - Extension methods use an `i` prefix meaning "into" (`iBox`, `iMrc`, `iUrc`); type aliases are `Mrc`/`Urc`; `box.rs` uses the raw identifier `mod r#box`
-- Dependencies pinned to exact versions (no `^`); always use `parking_lot` locks (never std `Mutex`); `flume` is always `default-features = false, features = ["select"]`
+- Dependencies pinned to exact versions (no `^`); shared versions are centralized in the root `[workspace.dependencies]` and members opt in with `workspace = true`; always use `parking_lot` locks (never std `Mutex`); `flume` is always `default-features = false, features = ["select"]`
 - Heavy `///` doc comments with Markdown tables and `rust` examples; `//!` module docs with macro reference tables
 - Derive/attribute/function macros are re-exported through the root crate (`libu::Builder`, `libu::clone`, `libu::select!`)
 
