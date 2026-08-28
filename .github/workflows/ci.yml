@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # The repo's rust-toolchain.toml pins the Windows-GNU triple for local
+    # builds; the CI needs the Linux triple instead. RUSTUP_TOOLCHAIN takes
+    # precedence over toolchain files.
+    env:
+      RUSTUP_TOOLCHAIN: nightly-x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo test --workspace
