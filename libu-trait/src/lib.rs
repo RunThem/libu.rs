@@ -1,7 +1,9 @@
 //! Trait extensions module
 //!
-//! Provides a set of trait extension methods implemented via the `extend` crate,
-//! adding convenient operations for standard types.
+//! Provides a set of trait extension methods implemented via the `extend`
+//! crate, adding convenient operations for standard types. One module per
+//! extension; call sites usually reach them through the umbrella prelude
+//! (`libu::prelude::*`) or by importing the concrete trait.
 //!
 //! # Available Extensions
 //!
@@ -10,224 +12,21 @@
 //! | `bool` | [`Pick::pick`] | Ternary selector |
 //! | `T: Default` | [`Bzero::bzero`] | Reset to default value |
 //! | `T: Sized` | [`Void::void`] | Suppress must_use warnings |
-//! | `str` | [`ToDur::to_dur`] | Parse string to Duration |
+//! | `str` | [`ToDur::to_dur`] / [`ToDur::try_to_dur`] | Parse string to `Duration` |
+//! | `u64` | [`DurExt`] | Duration literals (`5.secs()`, `250.ms()`, …) |
 //! | `Vec<T>` | [`RemoveIf::remove_if`] | Remove elements by condition |
 //! | `T: Debug` | [`Pretty::pretty`] | Pretty-print with 2-space indent |
 
-use std::fmt::Debug;
-use std::time::Duration;
+mod bzero;
+mod dur;
+mod pick;
+mod pretty;
+mod remove_if;
+mod void;
 
-use extend::ext;
-
-/// Ternary selector
-///
-/// Returns one of two values based on a boolean condition.
-///
-/// # Example
-///
-/// ```rust
-/// use libu_trait::Pick;
-///
-/// let value = true.pick(1, 2);
-/// assert_eq!(value, 1);
-///
-/// let value = false.pick("yes", "no");
-/// assert_eq!(value, "no");
-/// ```
-#[ext(pub, name = Pick)]
-impl<O> bool {
-  #[inline]
-  fn pick(self, if_true: O, if_false: O) -> O {
-    if self { if_true } else { if_false }
-  }
-}
-
-/// Reset to default value
-///
-/// Resets the value to its type's default, equivalent to `*self = Default::default()`.
-///
-/// # Example
-///
-/// ```rust
-/// use libu_trait::Bzero;
-///
-/// let mut value = 42;
-/// value.bzero();
-/// assert_eq!(value, 0);
-///
-/// let mut s = String::from("hello");
-/// s.bzero();
-/// assert_eq!(s, "");
-/// ```
-#[ext(pub, name = Bzero)]
-impl<A: Default> A {
-  #[inline]
-  fn bzero(&mut self) {
-    *self = Default::default()
-  }
-}
-
-/// Consume and discard value
-///
-/// Explicitly consumes a value to suppress `must_use` warnings.
-/// Useful when you need to ignore a return value without compiler warnings.
-///
-/// # Example
-///
-/// ```rust
-/// use libu_trait::Void;
-///
-/// // Some function returns Result, but we don't care about the result
-/// fn some_fn() -> Result<(), ()> { Ok(()) }
-///
-/// // Direct call would produce a must_use warning
-/// // some_fn(); // warning: unused `Result`
-///
-/// // Use void to explicitly consume
-/// some_fn().void();
-/// ```
-#[ext(pub, name = Void)]
-impl<B: Sized> B {
-  #[inline]
-  fn void(self) {}
-}
-
-/// Parse string to Duration
-///
-/// Parses a time string into a `Duration`.
-///
-/// # Supported Units
-///
-/// | Unit | Description |
-/// |------|------|
-/// | `ns` | Nanoseconds |
-/// | `us` | Microseconds |
-/// | `ms` | Milliseconds |
-/// | `s` | Seconds |
-/// | `m` | Minutes |
-///
-/// # Panics
-///
-/// - Panics if the numeric part cannot be parsed as `u64`
-/// - Panics if the unit is not in the supported list
-///
-/// # Example
-///
-/// ```rust
-/// use libu_trait::ToDur;
-/// use std::time::Duration;
-///
-/// let dur = "100ms".to_dur();
-/// assert_eq!(dur, Duration::from_millis(100));
-///
-/// let dur = "5s".to_dur();
-/// assert_eq!(dur, Duration::from_secs(5));
-///
-/// let dur = "2m".to_dur();
-/// assert_eq!(dur, Duration::from_secs(120));
-/// ```
-#[ext(pub, name = ToDur)]
-impl str {
-  #[inline]
-  fn to_dur(&self) -> Duration {
-    let len = self.find(|c: char| !c.is_ascii_digit()).unwrap();
-    let (num, unit) = self.split_at(len);
-    let num = num.parse::<u64>().unwrap();
-
-    match unit {
-      "ns" => Duration::from_nanos(num),
-      "us" => Duration::from_micros(num),
-      "ms" => Duration::from_millis(num),
-      "s" => Duration::from_secs(num),
-      "m" => Duration::from_secs(num * 60),
-
-      _ => panic!("unsupported time units."),
-    }
-  }
-}
-
-/// Remove elements by condition
-///
-/// Removes elements that satisfy the predicate and returns them as a new Vec.
-///
-/// # Complexity
-///
-/// Time complexity is **O(n²)** because each `Vec::remove` operation is O(n).
-/// For large collections, consider using `retain` or `drain` instead.
-///
-/// # Example
-///
-/// ```rust
-/// use libu_trait::RemoveIf;
-///
-/// let mut vec = vec![1, 2, 3, 4, 5, 6];
-/// let removed = vec.remove_if(|x| x % 2 == 0);
-///
-/// assert_eq!(vec, vec![1, 3, 5]);
-/// assert_eq!(removed, vec![2, 4, 6]);
-/// ```
-#[ext(pub, name = RemoveIf)]
-impl<T, F: Fn(&T) -> bool> Vec<T> {
-  fn remove_if(&mut self, predicate: F) -> Self {
-    let mut i = 0;
-    let mut removed = Self::with_capacity(self.len());
-
-    while i < self.len() {
-      if predicate(&self[i]) {
-        removed.push(self.remove(i));
-      } else {
-        i += 1;
-      }
-    }
-
-    removed
-  }
-}
-
-/// Pretty-print any `Debug` value with 2-space indentation
-///
-/// `{:#?}` pretty output is hardcoded to 4 spaces per level (RFC 0640
-/// deferred making it configurable). `Debug for str` escapes newlines, so
-/// every newline in std/derived debug output comes from the formatter
-/// itself and leading whitespace is always exactly `4 * depth` spaces —
-/// re-indenting the final string to 2 spaces per level is lossless and
-/// applies inside nested std containers (`Vec`, `HashMap`, ...) that a
-/// custom `Debug` derive cannot reach.
-///
-/// # Example
-///
-/// ```rust
-/// use libu_trait::Pretty;
-///
-/// #[derive(Debug)]
-/// struct St {
-///   name: String,
-///   tags: Vec<String>,
-/// }
-///
-/// let s = St {
-///   name: "hello".into(),
-///   tags: vec!["a".into(), "b".into()],
-/// };
-///
-/// // 2-space indentation, nested containers included
-/// assert_eq!(
-///   s.pretty(),
-///   "St {\n  name: \"hello\",\n  tags: [\n    \"a\",\n    \"b\",\n  ],\n}"
-/// );
-/// ```
-#[ext(pub, name = Pretty)]
-impl<T: Debug> T {
-  /// Pretty-print with 2-space indentation.
-  #[inline]
-  fn pretty(&self) -> String {
-    format!("{:#?}", self)
-      .lines()
-      .map(|line| {
-        let lead = line.len() - line.trim_start_matches(' ').len();
-        " ".repeat(lead / 4 * 2) + &line[lead..]
-      })
-      .collect::<Vec<_>>()
-      .join("\n")
-  }
-}
+pub use bzero::*;
+pub use dur::*;
+pub use pick::*;
+pub use pretty::*;
+pub use remove_if::*;
+pub use void::*;

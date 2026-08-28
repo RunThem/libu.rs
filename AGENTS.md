@@ -19,7 +19,7 @@ Umbrella root crate re-exports all 6 workspace members (`pub use libu_*::*`) and
 | `libu-timer` | 4096-bucket / 100ms-tick timing wheel; free fns `delay`/`ticker`, types `Timer`/`TimerHandle`. Depends on `libu-point` + `#[clone]` |
 | `libu-chan` | `Chan<S,R>` bidirectional point-to-point channel over two flume `unbounded` channels |
 | `libu-macro` | `macro_rules!` collection/control-flow macros (`hmap!`, `brk_if!`, `count!`, …), no deps |
-| `libu-trait` | `#[ext]`-based trait extensions (`Pick`, `Bzero`, `Void`, `ToDur`, `RemoveIf`, `Pretty`) |
+| `libu-trait` | `#[ext]`-based trait extensions, one module each (`pick`, `bzero`, `void`, `dur`, `remove_if`, `pretty`): `Pick`, `Bzero`, `Void`, `ToDur`(+`try_to_dur`, supports `h`/`d` and floats), `DurExt` numeric duration literals (`5.secs()`), `RemoveIf` (O(n) via `extract_if`), `Pretty` |
 
 ## Conventions
 
