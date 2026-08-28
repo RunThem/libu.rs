@@ -35,7 +35,7 @@
    - ~~非局部项/非表达式项静默 no-op,无任何诊断~~ → 编译错误;顺带表达式语句(`#[clone(x)] foo();`)从 no-op 改为真正生效(需 `#![feature(stmt_expr_attributes)]`)
    - ~~重复 ident 产生冗余克隆~~ → 报「duplicate identifier」
    新增测试:5 个 compile-fail 快照(`tests/ui/clone_*.rs`)、1 个运行时 pass 用例、7 个 `#[cfg(test)]` 单元断言。
-3. **`chk_if!`/`brk_if!`/`cnt_if!` 的 `(cond, stmt)` 形态不可达**(`libu-macro`)。`$val:expr` 臂在前,`$stmt:stmt` 中的裸表达式语句恒被 arm2 捕获,文档承诺的「先执行语句再返回」永不成立(`chk_if!(s.is_empty(), drop(s))` 实际是「返回 `drop(s)` 的值」)。修法:stmt 臂强制 `$stmt:block` 或带分号,同步文档。
+3. **条件控制宏的 `(cond, stmt)` 形态** —— **已完成**(`d49eda2`)。探针实测**只有 `chk_if!` 受影响**:`$val:expr` 臂在前,裸表达式语句恒被该臂捕获(`chk_if!(s.is_empty(), drop(s))` 实际是「返回 `drop(s)` 的值」),「先执行语句再返回」永不成立;`brk_if!`/`cnt_if!` 的两参臂是 `$label:lifetime`,裸表达式可正常命中 `$stmt:stmt` 臂,**不受影响**(原条目把三个并列为同一缺陷属过度概括)。修法按建议把 `chk_if!` 语句臂改为 `$stmt:block`:`chk_if!(cond, { stmt })`、`chk_if!(cond, val, { stmt })` 先执行块再返回;值形式 `chk_if!(cond, val)` 不变(块臂声明在前,裸表达式仍落值臂)。`brk_if!`/`cnt_if!` 宏未改,仅把示例补成可运行 doctest(含块形态),钉住 `(cond, stmt)` 行为。
 4. **Builder 次级问题**(不阻塞,值得排期):
    - 诊断一次只报一个错,应累积
    - `forward_attrs(cfg)` 把 `#[cfg]` 复制进 builder 字段,而 `build()` 无条件引用它们 → cfg 掉字段即 codegen 悬空
@@ -59,7 +59,7 @@
 
 ## 5. 建议执行批次
 
-- **P0(真 bug)**:`gen` 关键字、~~clone.rs 加固 + 测试~~ ✔(`c69e135`)、条件宏 stmt 臂语义、Builder 诊断累积
+- **P0(真 bug)**:`gen` 关键字、~~clone.rs 加固 + 测试~~ ✔(`c69e135`)、~~条件宏 stmt 臂语义~~ ✔(`d49eda2`)、Builder 诊断累积
 - **P1(基建)**:`rust-toolchain.toml` + CI + README + workspace.dependencies + resolver 3 + nightly 表述精确化
 - **P2(卫生)**:Arc/Mutex pub-use 摘除、`allow(unused)` 收窄、send/sync 去重、syn features、根测试改写
 - **P3(API)**:`Chan: Clone`、select!/Builder 扩展
@@ -73,3 +73,4 @@
 - `49ae7a7` libu-trait:`RemoveIf` 换 `extract_if`(O(n))、`ToDur` 修 panic(新增 `try_to_dur`/`h`/`d`/浮点)、新增 `DurExt` 字面量糖、拆分六模块
 - `e73a75f` libu-chan:send/recv 对称族、`disassemble`、移除 `tynm` 依赖、补文档与首个测试套件
 - `c69e135` libu-derive:`#[clone]` 属性宏加固(四项缺陷全部转 `compile_error!`)+ 首个测试套件(5 快照 / 1 pass / 7 单测)
+- `d49eda2` libu-macro:`chk_if!` 语句臂改 `$stmt:block`(先执行再返回可及;`brk_if!`/`cnt_if!` 探针实测不受影响)+ 三个宏补可运行 doctest
