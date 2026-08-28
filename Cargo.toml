@@ -16,15 +16,32 @@ members = [
     "libu-trait"
 ]
 
-[workspace.dependencies]
-parking_lot = "0.12.5"
-flume = { version = "0.12.0", default-features = false, features = ['select'] }
-extend = "1.2.0"
-darling = "0.23.0"
-proc-macro2 = "1.0.95"
-quote = "1.0.40"
-syn = { version = "2.0.104", features = ["full", "parsing", "printing", "extra-traits", "proc-macro", "derive", "clone-impls"] }
-trybuild = "1.0.120"
+[workspace.dependencies.parking_lot]
+version = "0.12.5"
+
+[workspace.dependencies.flume]
+version = "0.12.0"
+default-features = false
+features = ['select']
+
+[workspace.dependencies.extend]
+version = "1.2.0"
+
+[workspace.dependencies.darling]
+version = "0.23.0"
+
+[workspace.dependencies.proc-macro2]
+version = "1.0.95"
+
+[workspace.dependencies.quote]
+version = "1.0.40"
+
+[workspace.dependencies.syn]
+version = "2.0.104"
+features = ["full", "parsing", "printing", "extra-traits", "proc-macro", "derive", "clone-impls"]
+
+[workspace.dependencies.trybuild]
+version = "1.0.120"
 
 [dependencies.parking_lot]
 workspace = true
