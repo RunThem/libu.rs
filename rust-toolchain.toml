@@ -1,5 +1,0 @@
-[toolchain]
-# The project has always built with the GNU nightly: its bundled linker
-# needs no Visual Studio / Windows SDK installation. The CI overrides this
-# with RUSTUP_TOOLCHAIN for its Linux runner.
-channel = "nightly-x86_64-pc-windows-gnu"
